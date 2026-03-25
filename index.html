@@ -27,6 +27,8 @@ canvas{display:block;position:fixed;inset:0;width:100%!important;height:100%!imp
 <script type="module">
 import{GLTFLoader}from'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/GLTFLoader.js';
 
+try {
+
 const R=new THREE.WebGLRenderer({antialias:true});
 R.setPixelRatio(Math.min(devicePixelRatio,2));
 R.shadowMap.enabled=true;
@@ -40,7 +42,8 @@ document.body.appendChild(R.domElement);
 const S=new THREE.Scene();
 const C=new THREE.PerspectiveCamera(40,1,.001,1000);
 
-const kl=new THREE.DirectionalLight(0xffffff,1.2);
+// Key light
+const kl=new THREE.DirectionalLight(0xffffff,1.0);
 kl.position.set(4,8,5);kl.castShadow=true;
 kl.shadow.mapSize.set(2048,2048);
 kl.shadow.camera.near=.1;kl.shadow.camera.far=50;
@@ -48,22 +51,25 @@ kl.shadow.camera.left=-5;kl.shadow.camera.right=5;
 kl.shadow.camera.top=5;kl.shadow.camera.bottom=-5;
 kl.shadow.radius=8;kl.shadow.bias=-.0005;
 S.add(kl);
-
-const r1=new THREE.DirectionalLight(0x88bbff,2.5);r1.position.set(-5,1,-3);S.add(r1);
-const r2=new THREE.DirectionalLight(0xffcc66,1.8);r2.position.set(5,-1,-2);S.add(r2);
-const r3=new THREE.DirectionalLight(0xffffff,1.0);r3.position.set(0,5,-5);S.add(r3);
-const r4=new THREE.DirectionalLight(0xffffff,.3);r4.position.set(0,0,6);S.add(r4);
-S.add(new THREE.AmbientLight(0xffffff,.1));
+// Cool blue rim
+const r1=new THREE.DirectionalLight(0x88bbff,3.0);r1.position.set(-5,1,-3);S.add(r1);
+// Warm gold rim
+const r2=new THREE.DirectionalLight(0xffcc66,2.2);r2.position.set(5,-1,-2);S.add(r2);
+// Top back
+const r3=new THREE.DirectionalLight(0xffffff,1.2);r3.position.set(0,5,-5);S.add(r3);
+// Soft front fill
+const r4=new THREE.DirectionalLight(0xffffff,.2);r4.position.set(0,0,6);S.add(r4);
+S.add(new THREE.AmbientLight(0xffffff,.05));
 
 const sp=new THREE.Mesh(new THREE.PlaneGeometry(20,20),new THREE.ShadowMaterial({opacity:.1}));
 sp.rotation.x=-Math.PI/2;sp.receiveShadow=true;sp.visible=false;S.add(sp);
 
-function resize(){const w=innerWidth,h=innerHeight;R.setSize(w,h);C.aspect=w/h;C.updateProjectionMatrix();}
+function resize(){R.setSize(innerWidth,innerHeight);C.aspect=innerWidth/innerHeight;C.updateProjectionMatrix();}
 resize();window.addEventListener('resize',resize);
 
 const o={th:.4,ph:Math.PI/2.2,r:3,tg:new THREE.Vector3(),drag:false,lx:0,ly:0,ix:0,iy:0};
 const PM=.1,PX=Math.PI-.1,SN=.005,DM=.9;
-function ao(){const sp2=Math.sin(o.ph),cp=Math.cos(o.ph);C.position.set(o.tg.x+o.r*sp2*Math.sin(o.th),o.tg.y+o.r*cp,o.tg.z+o.r*sp2*Math.cos(o.th));C.lookAt(o.tg);}
+function ao(){const s=Math.sin(o.ph),c=Math.cos(o.ph);C.position.set(o.tg.x+o.r*s*Math.sin(o.th),o.tg.y+o.r*c,o.tg.z+o.r*s*Math.cos(o.th));C.lookAt(o.tg);}
 let as=true;
 function dn(x,y){o.drag=true;o.lx=x;o.ly=y;o.ix=o.iy=0;as=false;}
 function mv(x,y){if(!o.drag)return;const dx=x-o.lx,dy=y-o.ly;o.th-=dx*SN;o.ph=Math.max(PM,Math.min(PX,o.ph+dy*SN));o.ix=-dx*SN;o.iy=dy*SN;o.lx=x;o.ly=y;}
@@ -78,7 +84,13 @@ R.domElement.addEventListener('wheel',e=>e.preventDefault(),{passive:false});
 R.domElement.addEventListener('gesturestart',e=>e.preventDefault());
 
 let mx=null;const cl=new THREE.Clock();
-function loop(){requestAnimationFrame(loop);const dt=cl.getDelta();if(mx)mx.update(dt);if(!o.drag){if(as){o.th+=.005;}else{o.th+=o.ix;o.ix*=DM;o.ph=Math.max(PM,Math.min(PX,o.ph+o.iy));o.iy*=DM;}}ao();R.render(S,C);}
+function loop(){
+  requestAnimationFrame(loop);
+  const dt=cl.getDelta();
+  if(mx)mx.update(dt);
+  if(!o.drag){if(as){o.th+=.005;}else{o.th+=o.ix;o.ix*=DM;o.ph=Math.max(PM,Math.min(PX,o.ph+o.iy));o.iy*=DM;}}
+  ao();R.render(S,C);
+}
 loop();
 
 const LE=document.getElementById('loader');
@@ -88,7 +100,18 @@ const BP=document.getElementById('bp');
 new GLTFLoader().load('./model.glb',
   gltf=>{
     const m=gltf.scene;
-    m.traverse(n=>{if(!n.isMesh)return;n.castShadow=true;n.receiveShadow=true;if(n.material){n.material.envMapIntensity=1.0;n.material.needsUpdate=true;}});
+    m.traverse(n=>{
+      if(!n.isMesh)return;
+      n.castShadow=true;
+      n.receiveShadow=true;
+      // Force chrome material regardless of what GLB has
+      n.material=new THREE.MeshStandardMaterial({
+        color:new THREE.Color(0.85,0.85,0.85),
+        metalness:1.0,
+        roughness:0.04,
+        envMapIntensity:1.0,
+      });
+    });
     const b=new THREE.Box3().setFromObject(m);
     const c=b.getCenter(new THREE.Vector3());
     const sz=b.getSize(new THREE.Vector3());
@@ -107,8 +130,16 @@ new GLTFLoader().load('./model.glb',
     setTimeout(()=>document.getElementById('hint').classList.add('hide'),5000);
   },
   p=>{if(p.total>0){const pct=Math.round(p.loaded/p.total*100);BF.style.width=pct+'%';BP.textContent=pct+'%';}},
-  err=>{console.error(err);LE.innerHTML='<div style="color:rgba(255,255,255,.4);font:11px monospace;text-align:center;padding:40px">Error loading model.glb<br><br>'+err+'</div>';}
+  err=>{
+    console.error(err);
+    LE.innerHTML='<div style="color:rgba(255,255,255,.5);font:11px monospace;text-align:center;padding:40px;line-height:2">Could not load model.glb<br><small style="opacity:.5">'+String(err)+'</small></div>';
+  }
 );
+
+} catch(e) {
+  document.getElementById('bp').textContent = 'Error: '+e.message;
+  console.error('INIT ERROR:',e);
+}
 </script>
 </body>
 </html>
