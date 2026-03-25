@@ -2,47 +2,43 @@
 <html><head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Minimal Audio - Debug</title>
-<style>
-body{background:#111;color:#fff;font:14px monospace;padding:20px;line-height:1.8}
-.ok{color:#4f4}
-.err{color:#f44}
-.info{color:#ff4}
-</style>
+<title>Minimal Audio - CDN Test</title>
+<style>body{background:#111;color:#fff;font:13px monospace;padding:20px;line-height:2}.ok{color:#4f4}.err{color:#f44}.info{color:#ff4}</style>
 </head><body>
-<h2 style="color:#d4f0e4;letter-spacing:.2em">MINIMAL AUDIO<br><small style="font-size:11px;opacity:.5">DIAGNOSTIC</small></h2>
+<h2 style="color:#d4f0e4;letter-spacing:.2em">CDN TEST</h2>
 <div id="log"></div>
 <script>
-function log(msg,cls){document.getElementById('log').innerHTML+='<div class="'+(cls||'info')+'">'+msg+'</div>';}
-log('Page loaded ✓','ok');
-log('THREE.js: '+(typeof THREE!=='undefined'?'loaded ✓':'MISSING ✗'),typeof THREE!=='undefined'?'ok':'err');
-try{
-  const c=document.createElement('canvas');
-  const gl=c.getContext('webgl')||c.getContext('experimental-webgl');
-  if(gl){log('WebGL: supported ✓','ok');}
-  else{log('WebGL: NOT supported ✗','err');}
-}catch(e){log('WebGL error: '+e.message,'err');}
-log('Fetching model.glb...','info');
-fetch('./model.glb').then(r=>{
-  log('model.glb status: '+r.status+(r.ok?' ✓':' ✗'),r.ok?'ok':'err');
-  log('Content-Type: '+r.headers.get('content-type'),'info');
-  log('Size: '+r.headers.get('content-length')+' bytes','info');
-  return r.arrayBuffer();
-}).then(buf=>{
-  const v=new DataView(buf);
-  const magic=String.fromCharCode(v.getUint8(0),v.getUint8(1),v.getUint8(2),v.getUint8(3));
-  log('GLB magic: '+magic+(magic==='glTF'?' ✓':' ✗'),magic==='glTF'?'ok':'err');
-  const len=v.getUint32(8,true);
-  log('GLB length: '+len+' bytes','info');
-  if(magic==='glTF'){
-    const chunkLen=v.getUint32(12,true);
-    const json=JSON.parse(new TextDecoder().decode(new Uint8Array(buf,20,chunkLen)));
-    log('Meshes: '+(json.meshes?.length||0),(json.meshes?.length>0)?'ok':'err');
-    log('Materials: '+(json.materials?.length||0),'info');
-    if(json.meshes?.[0]) log('Mesh name: '+json.meshes[0].name,'info');
-    if(json.accessors?.[0]) log('Vertices: '+json.accessors[0].count,'info');
-  }
-  log('--- All checks done ---','ok');
-}).catch(e=>log('Fetch error: '+e.message,'err'));
+function log(m,c){document.getElementById('log').innerHTML+='<div class="'+(c||'info')+'">'+m+'</div>';}
+log('Testing CDNs...','info');
+
+// Test 1: unpkg
+var s1=document.createElement('script');
+s1.src='https://unpkg.com/three@0.128.0/build/three.min.js';
+s1.onload=function(){log('unpkg.com: WORKS ✓','ok');};
+s1.onerror=function(){log('unpkg.com: blocked ✗','err');};
+document.head.appendChild(s1);
+
+// Test 2: jsdelivr  
+var s2=document.createElement('script');
+s2.src='https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js';
+s2.onload=function(){log('jsdelivr.net: WORKS ✓','ok');};
+s2.onerror=function(){log('jsdelivr.net: blocked ✗','err');};
+document.head.appendChild(s2);
+
+// Test 3: cdnjs cloudflare
+var s3=document.createElement('script');
+s3.src='https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
+s3.onload=function(){log('cdnjs.cloudflare.com: WORKS ✓','ok');};
+s3.onerror=function(){log('cdnjs.cloudflare.com: blocked ✗','err');};
+document.head.appendChild(s3);
+
+// Test 4: raw githack (serves directly from github)
+var s4=document.createElement('script');
+s4.src='https://rawcdn.githack.com/mrdoob/three.js/r128/build/three.min.js';
+s4.onload=function(){log('rawcdn.githack.com: WORKS ✓','ok');};
+s4.onerror=function(){log('rawcdn.githack.com: blocked ✗','err');};
+document.head.appendChild(s4);
+
+setTimeout(function(){log('--- done waiting ---','ok');},8000);
 </script>
 </body></html>
