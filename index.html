@@ -8,9 +8,8 @@
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{width:100%;height:100%;overflow:hidden;background:#080809;touch-action:none}
 canvas{display:block;position:fixed;inset:0;width:100%!important;height:100%!important;touch-action:none}
-#ui{position:fixed;inset:0;pointer-events:none;z-index:10}
-#lbl{position:absolute;top:24px;left:50%;transform:translateX(-50%);font:10px/1 'Courier New',monospace;letter-spacing:.28em;text-transform:uppercase;color:rgba(255,255,255,.35);white-space:nowrap}
-#hint{position:absolute;bottom:32px;left:50%;transform:translateX(-50%);font:10px/1 'Courier New',monospace;letter-spacing:.16em;color:rgba(255,255,255,.25);transition:opacity 2s;white-space:nowrap}
+#lbl{position:fixed;top:24px;left:50%;transform:translateX(-50%);font:10px/1 'Courier New',monospace;letter-spacing:.28em;text-transform:uppercase;color:rgba(255,255,255,.35);white-space:nowrap;z-index:10;pointer-events:none}
+#hint{position:fixed;bottom:32px;left:50%;transform:translateX(-50%);font:10px/1 'Courier New',monospace;letter-spacing:.16em;color:rgba(255,255,255,.25);transition:opacity 2s;white-space:nowrap;z-index:10;pointer-events:none}
 #hint.hide{opacity:0}
 #loader{position:fixed;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;background:#080809;transition:opacity .8s}
 #loader.fade{opacity:0;pointer-events:none}
@@ -21,45 +20,45 @@ canvas{display:block;position:fixed;inset:0;width:100%!important;height:100%!imp
 </style>
 </head>
 <body>
-<div id="loader"><div id="lw">Minimal Audio</div><div id="bt"><div id="bf"></div></div><div id="bp">0%</div></div>
-<div id="ui"><div id="lbl">Minimal Audio</div><div id="hint">drag to rotate</div></div>
-<script type="module">
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.module.js';
-import {GLTFLoader} from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/GLTFLoader.js';
+<div id="loader"><div id="lw">Minimal Audio</div><div id="bt"><div id="bf"></div></div><div id="bp">loading...</div></div>
+<div id="lbl">Minimal Audio</div>
+<div id="hint">drag to rotate</div>
 
-const LE=document.getElementById('loader');
-const BF=document.getElementById('bf');
-const BP=document.getElementById('bp');
-function err(msg){LE.innerHTML='<div style="color:rgba(255,255,255,.7);font:12px monospace;text-align:center;padding:40px;line-height:2">'+msg+'</div>';}
+<script>
+window.onerror=function(m,s,l,c,e){document.getElementById('loader').innerHTML='<div style="color:#f88;font:11px monospace;padding:24px;line-height:1.8;text-align:left">ERR: '+m+'\nLine '+l+'\n'+(e&&e.stack?e.stack.substring(0,300):'')+'</div>';return true;};
+window.addEventListener('unhandledrejection',function(e){document.getElementById('loader').innerHTML='<div style="color:#f88;font:11px monospace;padding:24px;line-height:1.8">REJECT: '+String(e.reason)+'</div>';});
+document.getElementById('bp').textContent='step1';
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js" onload="document.getElementById('bp').textContent='step2'" onerror="document.getElementById('loader').innerHTML='<div style=color:#f88;font:12px monospace;padding:24px>three.js failed to load</div>'"></script>
+
+<script type="module">
+import {GLTFLoader} from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/GLTFLoader.js';
+document.getElementById('bp').textContent='step3';
+
+const LE=document.getElementById('loader'),BF=document.getElementById('bf'),BP=document.getElementById('bp');
+function err(m){LE.innerHTML='<div style="color:#f88;font:11px monospace;padding:24px;line-height:1.8;white-space:pre-wrap">'+m+'</div>';}
 
 let R,S,C;
 try{
   R=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
-  R.setPixelRatio(Math.min(devicePixelRatio,2));
-  R.shadowMap.enabled=true;
-  R.shadowMap.type=THREE.PCFSoftShadowMap;
-  R.outputEncoding=THREE.sRGBEncoding;
-  R.toneMapping=THREE.ACESFilmicToneMapping;
-  R.toneMappingExposure=1.2;
-  R.setClearColor(0x080809,1);
-  document.body.appendChild(R.domElement);
-  S=new THREE.Scene();
-  C=new THREE.PerspectiveCamera(40,1,.001,1000);
-}catch(e){err('WebGL error:<br>'+e.message);throw e;}
+  BP.textContent='step4-webgl-ok';
+}catch(e){err('WebGL failed:\n'+e.message);throw e;}
 
-const kl=new THREE.DirectionalLight(0xffffff,1.0);
-kl.position.set(4,8,5);kl.castShadow=true;
-kl.shadow.mapSize.set(2048,2048);
-kl.shadow.camera.near=.1;kl.shadow.camera.far=50;
-kl.shadow.camera.left=-5;kl.shadow.camera.right=5;
-kl.shadow.camera.top=5;kl.shadow.camera.bottom=-5;
-kl.shadow.radius=8;kl.shadow.bias=-.0005;
-S.add(kl);
+R.setPixelRatio(Math.min(devicePixelRatio,2));
+R.shadowMap.enabled=true;R.shadowMap.type=THREE.PCFSoftShadowMap;
+R.outputEncoding=THREE.sRGBEncoding;R.toneMapping=THREE.ACESFilmicToneMapping;R.toneMappingExposure=1.2;
+R.setClearColor(0x080809,1);document.body.appendChild(R.domElement);
+S=new THREE.Scene();C=new THREE.PerspectiveCamera(40,1,.001,1000);
+
+S.add(Object.assign(new THREE.DirectionalLight(0xffffff,1),{position:new THREE.Vector3(4,8,5),castShadow:true}));
 S.add(Object.assign(new THREE.DirectionalLight(0x88bbff,2.5),{position:new THREE.Vector3(-5,1,-3)}));
 S.add(Object.assign(new THREE.DirectionalLight(0xffcc66,1.8),{position:new THREE.Vector3(5,-1,-2)}));
-S.add(Object.assign(new THREE.DirectionalLight(0xffffff,1.0),{position:new THREE.Vector3(0,5,-5)}));
+S.add(Object.assign(new THREE.DirectionalLight(0xffffff,1),{position:new THREE.Vector3(0,5,-5)}));
 S.add(Object.assign(new THREE.DirectionalLight(0xffffff,.3),{position:new THREE.Vector3(0,0,6)}));
 S.add(new THREE.AmbientLight(0xffffff,.15));
+
+const kl=S.children[0];kl.shadow.mapSize.set(2048,2048);kl.shadow.camera.near=.1;kl.shadow.camera.far=50;kl.shadow.camera.left=kl.shadow.camera.bottom=-5;kl.shadow.camera.right=kl.shadow.camera.top=5;kl.shadow.radius=8;kl.shadow.bias=-.0005;
 
 const sp=new THREE.Mesh(new THREE.PlaneGeometry(20,20),new THREE.ShadowMaterial({opacity:.1}));
 sp.rotation.x=-Math.PI/2;sp.receiveShadow=true;sp.visible=false;S.add(sp);
@@ -70,8 +69,8 @@ resize();window.addEventListener('resize',resize);
 const o={th:.4,ph:Math.PI/2.2,r:3,tg:new THREE.Vector3(),drag:false,lx:0,ly:0,ix:0,iy:0};
 const PM=.1,PX=Math.PI-.1,SN=.005,DM=.9;
 function ao(){const s=Math.sin(o.ph),c=Math.cos(o.ph);C.position.set(o.tg.x+o.r*s*Math.sin(o.th),o.tg.y+o.r*c,o.tg.z+o.r*s*Math.cos(o.th));C.lookAt(o.tg);}
-let as=true;
-function dn(x,y){o.drag=true;o.lx=x;o.ly=y;o.ix=o.iy=0;as=false;}
+let spin=true;
+function dn(x,y){o.drag=true;o.lx=x;o.ly=y;o.ix=o.iy=0;spin=false;}
 function mv(x,y){if(!o.drag)return;const dx=x-o.lx,dy=y-o.ly;o.th-=dx*SN;o.ph=Math.max(PM,Math.min(PX,o.ph+dy*SN));o.ix=-dx*SN;o.iy=dy*SN;o.lx=x;o.ly=y;}
 function up(){o.drag=false;}
 R.domElement.addEventListener('mousedown',e=>dn(e.clientX,e.clientY));
@@ -83,21 +82,17 @@ window.addEventListener('touchend',up,{passive:true});
 R.domElement.addEventListener('wheel',e=>e.preventDefault(),{passive:false});
 
 let mx=null;const cl=new THREE.Clock();
-function loop(){requestAnimationFrame(loop);const dt=cl.getDelta();if(mx)mx.update(dt);if(!o.drag){if(as){o.th+=.005;}else{o.th+=o.ix;o.ix*=DM;o.ph=Math.max(PM,Math.min(PX,o.ph+o.iy));o.iy*=DM;}}ao();R.render(S,C);}
-loop();
+(function loop(){requestAnimationFrame(loop);if(mx)mx.update(cl.getDelta());if(!o.drag){if(spin)o.th+=.005;else{o.th+=o.ix;o.ix*=DM;o.ph=Math.max(PM,Math.min(PX,o.ph+o.iy));o.iy*=DM;}}ao();R.render(S,C);})();
 
+BP.textContent='step5-loading-glb';
 new GLTFLoader().load('./model.glb',
   gltf=>{
     const m=gltf.scene;let mc=0;
-    m.traverse(n=>{if(n.isMesh){mc++;n.castShadow=true;n.receiveShadow=true;
-      n.material=new THREE.MeshStandardMaterial({color:new THREE.Color(.85,.85,.85),metalness:1.0,roughness:0.04});}});
-    if(mc===0){err('No mesh found.<br>Re-export from Blender:<br>Object > Convert > Mesh, then export GLB');return;}
-    const b=new THREE.Box3().setFromObject(m);
-    const c=b.getCenter(new THREE.Vector3()),sz=b.getSize(new THREE.Vector3());
-    const sc=2.4/Math.max(sz.x,sz.y,sz.z);
-    m.position.sub(c.multiplyScalar(sc));m.scale.setScalar(sc);
-    const b2=new THREE.Box3().setFromObject(m);
-    const c2=b2.getCenter(new THREE.Vector3()),s2=b2.getSize(new THREE.Vector3());
+    m.traverse(n=>{if(n.isMesh){mc++;n.castShadow=true;n.receiveShadow=true;n.material=new THREE.MeshStandardMaterial({color:new THREE.Color(.85,.85,.85),metalness:1,roughness:.04});}});
+    if(mc===0){err('0 meshes found in GLB.\nPls re-export from Blender:\nObject > Convert > Mesh\nthen export GLB again');return;}
+    const b=new THREE.Box3().setFromObject(m),c=b.getCenter(new THREE.Vector3()),sz=b.getSize(new THREE.Vector3());
+    const sc=2.4/Math.max(sz.x,sz.y,sz.z);m.position.sub(c.multiplyScalar(sc));m.scale.setScalar(sc);
+    const b2=new THREE.Box3().setFromObject(m),c2=b2.getCenter(new THREE.Vector3()),s2=b2.getSize(new THREE.Vector3());
     sp.position.y=b2.min.y-.001;sp.visible=true;
     o.r=Math.max(s2.x,s2.y,s2.z)/(2*Math.tan(THREE.MathUtils.degToRad(C.fov)/2))*1.6;
     o.tg.copy(c2);o.ph=Math.PI/2.2;ao();S.add(m);
@@ -107,7 +102,7 @@ new GLTFLoader().load('./model.glb',
     setTimeout(()=>document.getElementById('hint').classList.add('hide'),5000);
   },
   p=>{if(p.total>0){const pct=Math.round(p.loaded/p.total*100);BF.style.width=pct+'%';BP.textContent=pct+'%';}},
-  e=>{err('Load error:<br>'+String(e));}
+  e=>{err('GLB error:\n'+String(e));}
 );
 </script>
 </body>
