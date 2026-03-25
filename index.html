@@ -1,44 +1,114 @@
 <!DOCTYPE html>
-<html><head>
+<html lang="en">
+<head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Minimal Audio - CDN Test</title>
-<style>body{background:#111;color:#fff;font:13px monospace;padding:20px;line-height:2}.ok{color:#4f4}.err{color:#f44}.info{color:#ff4}</style>
-</head><body>
-<h2 style="color:#d4f0e4;letter-spacing:.2em">CDN TEST</h2>
-<div id="log"></div>
-<script>
-function log(m,c){document.getElementById('log').innerHTML+='<div class="'+(c||'info')+'">'+m+'</div>';}
-log('Testing CDNs...','info');
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+<title>Minimal Audio</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:#080809;touch-action:none}
+canvas{display:block;position:fixed;inset:0;width:100%!important;height:100%!important;touch-action:none}
+#ui{position:fixed;inset:0;pointer-events:none;z-index:10}
+#lbl{position:absolute;top:24px;left:50%;transform:translateX(-50%);font:10px/1 'Courier New',monospace;letter-spacing:.28em;text-transform:uppercase;color:rgba(255,255,255,.35);white-space:nowrap}
+#hint{position:absolute;bottom:32px;left:50%;transform:translateX(-50%);font:10px/1 'Courier New',monospace;letter-spacing:.16em;color:rgba(255,255,255,.25);transition:opacity 2s;white-space:nowrap}
+#hint.hide{opacity:0}
+#loader{position:fixed;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;background:#080809;transition:opacity .8s}
+#loader.fade{opacity:0;pointer-events:none}
+#lw{font:11px/1 'Courier New',monospace;letter-spacing:.32em;text-transform:uppercase;color:rgba(255,255,255,.85)}
+#bt{width:min(200px,55vw);height:1px;background:rgba(255,255,255,.08);position:relative}
+#bf{position:absolute;left:0;top:0;bottom:0;background:#d4f0e4;width:0%;transition:width .2s}
+#bp{font:10px/1 'Courier New',monospace;letter-spacing:.12em;color:rgba(255,255,255,.25)}
+</style>
+</head>
+<body>
+<div id="loader"><div id="lw">Minimal Audio</div><div id="bt"><div id="bf"></div></div><div id="bp">0%</div></div>
+<div id="ui"><div id="lbl">Minimal Audio</div><div id="hint">drag to rotate</div></div>
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.module.js';
+import {GLTFLoader} from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/GLTFLoader.js';
 
-// Test 1: unpkg
-var s1=document.createElement('script');
-s1.src='https://unpkg.com/three@0.128.0/build/three.min.js';
-s1.onload=function(){log('unpkg.com: WORKS ✓','ok');};
-s1.onerror=function(){log('unpkg.com: blocked ✗','err');};
-document.head.appendChild(s1);
+const LE=document.getElementById('loader');
+const BF=document.getElementById('bf');
+const BP=document.getElementById('bp');
+function err(msg){LE.innerHTML='<div style="color:rgba(255,255,255,.7);font:12px monospace;text-align:center;padding:40px;line-height:2">'+msg+'</div>';}
 
-// Test 2: jsdelivr  
-var s2=document.createElement('script');
-s2.src='https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js';
-s2.onload=function(){log('jsdelivr.net: WORKS ✓','ok');};
-s2.onerror=function(){log('jsdelivr.net: blocked ✗','err');};
-document.head.appendChild(s2);
+let R,S,C;
+try{
+  R=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
+  R.setPixelRatio(Math.min(devicePixelRatio,2));
+  R.shadowMap.enabled=true;
+  R.shadowMap.type=THREE.PCFSoftShadowMap;
+  R.outputEncoding=THREE.sRGBEncoding;
+  R.toneMapping=THREE.ACESFilmicToneMapping;
+  R.toneMappingExposure=1.2;
+  R.setClearColor(0x080809,1);
+  document.body.appendChild(R.domElement);
+  S=new THREE.Scene();
+  C=new THREE.PerspectiveCamera(40,1,.001,1000);
+}catch(e){err('WebGL error:<br>'+e.message);throw e;}
 
-// Test 3: cdnjs cloudflare
-var s3=document.createElement('script');
-s3.src='https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
-s3.onload=function(){log('cdnjs.cloudflare.com: WORKS ✓','ok');};
-s3.onerror=function(){log('cdnjs.cloudflare.com: blocked ✗','err');};
-document.head.appendChild(s3);
+const kl=new THREE.DirectionalLight(0xffffff,1.0);
+kl.position.set(4,8,5);kl.castShadow=true;
+kl.shadow.mapSize.set(2048,2048);
+kl.shadow.camera.near=.1;kl.shadow.camera.far=50;
+kl.shadow.camera.left=-5;kl.shadow.camera.right=5;
+kl.shadow.camera.top=5;kl.shadow.camera.bottom=-5;
+kl.shadow.radius=8;kl.shadow.bias=-.0005;
+S.add(kl);
+S.add(Object.assign(new THREE.DirectionalLight(0x88bbff,2.5),{position:new THREE.Vector3(-5,1,-3)}));
+S.add(Object.assign(new THREE.DirectionalLight(0xffcc66,1.8),{position:new THREE.Vector3(5,-1,-2)}));
+S.add(Object.assign(new THREE.DirectionalLight(0xffffff,1.0),{position:new THREE.Vector3(0,5,-5)}));
+S.add(Object.assign(new THREE.DirectionalLight(0xffffff,.3),{position:new THREE.Vector3(0,0,6)}));
+S.add(new THREE.AmbientLight(0xffffff,.15));
 
-// Test 4: raw githack (serves directly from github)
-var s4=document.createElement('script');
-s4.src='https://rawcdn.githack.com/mrdoob/three.js/r128/build/three.min.js';
-s4.onload=function(){log('rawcdn.githack.com: WORKS ✓','ok');};
-s4.onerror=function(){log('rawcdn.githack.com: blocked ✗','err');};
-document.head.appendChild(s4);
+const sp=new THREE.Mesh(new THREE.PlaneGeometry(20,20),new THREE.ShadowMaterial({opacity:.1}));
+sp.rotation.x=-Math.PI/2;sp.receiveShadow=true;sp.visible=false;S.add(sp);
 
-setTimeout(function(){log('--- done waiting ---','ok');},8000);
+function resize(){R.setSize(innerWidth,innerHeight);C.aspect=innerWidth/innerHeight;C.updateProjectionMatrix();}
+resize();window.addEventListener('resize',resize);
+
+const o={th:.4,ph:Math.PI/2.2,r:3,tg:new THREE.Vector3(),drag:false,lx:0,ly:0,ix:0,iy:0};
+const PM=.1,PX=Math.PI-.1,SN=.005,DM=.9;
+function ao(){const s=Math.sin(o.ph),c=Math.cos(o.ph);C.position.set(o.tg.x+o.r*s*Math.sin(o.th),o.tg.y+o.r*c,o.tg.z+o.r*s*Math.cos(o.th));C.lookAt(o.tg);}
+let as=true;
+function dn(x,y){o.drag=true;o.lx=x;o.ly=y;o.ix=o.iy=0;as=false;}
+function mv(x,y){if(!o.drag)return;const dx=x-o.lx,dy=y-o.ly;o.th-=dx*SN;o.ph=Math.max(PM,Math.min(PX,o.ph+dy*SN));o.ix=-dx*SN;o.iy=dy*SN;o.lx=x;o.ly=y;}
+function up(){o.drag=false;}
+R.domElement.addEventListener('mousedown',e=>dn(e.clientX,e.clientY));
+window.addEventListener('mousemove',e=>mv(e.clientX,e.clientY));
+window.addEventListener('mouseup',up);
+R.domElement.addEventListener('touchstart',e=>{if(e.touches.length===1)dn(e.touches[0].clientX,e.touches[0].clientY);},{passive:true});
+window.addEventListener('touchmove',e=>{if(e.touches.length===1)mv(e.touches[0].clientX,e.touches[0].clientY);},{passive:true});
+window.addEventListener('touchend',up,{passive:true});
+R.domElement.addEventListener('wheel',e=>e.preventDefault(),{passive:false});
+
+let mx=null;const cl=new THREE.Clock();
+function loop(){requestAnimationFrame(loop);const dt=cl.getDelta();if(mx)mx.update(dt);if(!o.drag){if(as){o.th+=.005;}else{o.th+=o.ix;o.ix*=DM;o.ph=Math.max(PM,Math.min(PX,o.ph+o.iy));o.iy*=DM;}}ao();R.render(S,C);}
+loop();
+
+new GLTFLoader().load('./model.glb',
+  gltf=>{
+    const m=gltf.scene;let mc=0;
+    m.traverse(n=>{if(n.isMesh){mc++;n.castShadow=true;n.receiveShadow=true;
+      n.material=new THREE.MeshStandardMaterial({color:new THREE.Color(.85,.85,.85),metalness:1.0,roughness:0.04});}});
+    if(mc===0){err('No mesh found.<br>Re-export from Blender:<br>Object > Convert > Mesh, then export GLB');return;}
+    const b=new THREE.Box3().setFromObject(m);
+    const c=b.getCenter(new THREE.Vector3()),sz=b.getSize(new THREE.Vector3());
+    const sc=2.4/Math.max(sz.x,sz.y,sz.z);
+    m.position.sub(c.multiplyScalar(sc));m.scale.setScalar(sc);
+    const b2=new THREE.Box3().setFromObject(m);
+    const c2=b2.getCenter(new THREE.Vector3()),s2=b2.getSize(new THREE.Vector3());
+    sp.position.y=b2.min.y-.001;sp.visible=true;
+    o.r=Math.max(s2.x,s2.y,s2.z)/(2*Math.tan(THREE.MathUtils.degToRad(C.fov)/2))*1.6;
+    o.tg.copy(c2);o.ph=Math.PI/2.2;ao();S.add(m);
+    if(gltf.animations&&gltf.animations.length){mx=new THREE.AnimationMixer(m);gltf.animations.forEach(a=>mx.clipAction(a).play());}
+    BF.style.width='100%';BP.textContent='100%';
+    setTimeout(()=>{LE.classList.add('fade');setTimeout(()=>LE.style.display='none',800);},400);
+    setTimeout(()=>document.getElementById('hint').classList.add('hide'),5000);
+  },
+  p=>{if(p.total>0){const pct=Math.round(p.loaded/p.total*100);BF.style.width=pct+'%';BP.textContent=pct+'%';}},
+  e=>{err('Load error:<br>'+String(e));}
+);
 </script>
-</body></html>
+</body>
+</html>
