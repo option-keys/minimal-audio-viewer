@@ -22,18 +22,22 @@
   </style>
 </head>
 <body>
+
 <div id="loader">
   <div id="loader-wordmark">Minimal Audio</div>
   <div id="loader-bar-track"><div id="loader-bar-fill"></div></div>
   <div id="loader-pct">0%</div>
 </div>
+
 <div id="hud">
   <div id="label">Minimal Audio</div>
   <div id="hint">drag to rotate</div>
 </div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script type="module">
 import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/GLTFLoader.js';
+
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
@@ -43,62 +47,150 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.15;
 renderer.setClearColor(0x080809, 1);
 document.body.appendChild(renderer.domElement);
+
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(42, 1, 0.001, 2000);
+
 scene.add(new THREE.AmbientLight(0xffffff, 0.35));
 const key = new THREE.DirectionalLight(0xfff6e8, 1.6);
 key.position.set(4, 7, 5); key.castShadow = true;
-key.shadow.mapSize.set(2048, 2048); key.shadow.camera.near = 0.1; key.shadow.camera.far = 60;
-key.shadow.camera.left = -6; key.shadow.camera.right = 6; key.shadow.camera.top = 6; key.shadow.camera.bottom = -6;
-key.shadow.radius = 10; key.shadow.bias = -0.0005; scene.add(key);
-const fill = new THREE.DirectionalLight(0xbbd4ff, 0.55); fill.position.set(-5, 2, -3); scene.add(fill);
-const rim = new THREE.DirectionalLight(0xffffff, 0.25); rim.position.set(0, -4, -6); scene.add(rim);
+key.shadow.mapSize.set(2048, 2048);
+key.shadow.camera.near = 0.1; key.shadow.camera.far = 60;
+key.shadow.camera.left = -6; key.shadow.camera.right = 6;
+key.shadow.camera.top = 6; key.shadow.camera.bottom = -6;
+key.shadow.radius = 10; key.shadow.bias = -0.0005;
+scene.add(key);
+const fill = new THREE.DirectionalLight(0xbbd4ff, 0.55);
+fill.position.set(-5, 2, -3); scene.add(fill);
+const rim = new THREE.DirectionalLight(0xffffff, 0.25);
+rim.position.set(0, -4, -6); scene.add(rim);
 scene.add(new THREE.HemisphereLight(0x7a9ec2, 0x2e2418, 0.55));
-const shadowPlane = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.ShadowMaterial({ opacity: 0.15 }));
-shadowPlane.rotation.x = -Math.PI / 2; shadowPlane.receiveShadow = true; shadowPlane.visible = false; scene.add(shadowPlane);
-function resize() { const w = window.innerWidth, h = window.innerHeight; renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); }
+
+const shadowPlane = new THREE.Mesh(
+  new THREE.PlaneGeometry(30, 30),
+  new THREE.ShadowMaterial({ opacity: 0.15 })
+);
+shadowPlane.rotation.x = -Math.PI / 2;
+shadowPlane.receiveShadow = true;
+shadowPlane.visible = false;
+scene.add(shadowPlane);
+
+function resize() {
+  const w = window.innerWidth, h = window.innerHeight;
+  renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix();
+}
 resize(); window.addEventListener('resize', resize);
+
 const orb = { theta: 0.3, phi: Math.PI / 2.3, radius: 3, target: new THREE.Vector3(), drag: false, lx: 0, ly: 0, ix: 0, iy: 0 };
 const PHI_MIN = 0.12, PHI_MAX = Math.PI - 0.12, SENS = 0.005, DAMP = 0.88;
-function applyOrbit() { const sp = Math.sin(orb.phi), cp = Math.cos(orb.phi); camera.position.set(orb.target.x + orb.radius * sp * Math.sin(orb.theta), orb.target.y + orb.radius * cp, orb.target.z + orb.radius * sp * Math.cos(orb.theta)); camera.lookAt(orb.target); }
+
+function applyOrbit() {
+  const sp = Math.sin(orb.phi), cp = Math.cos(orb.phi);
+  camera.position.set(
+    orb.target.x + orb.radius * sp * Math.sin(orb.theta),
+    orb.target.y + orb.radius * cp,
+    orb.target.z + orb.radius * sp * Math.cos(orb.theta)
+  );
+  camera.lookAt(orb.target);
+}
+
 let autoSpin = true;
-function onDown(x,y){ orb.drag=true; orb.lx=x; orb.ly=y; orb.ix=orb.iy=0; autoSpin=false; }
-function onMove(x,y){ if(!orb.drag) return; const dx=x-orb.lx, dy=y-orb.ly; orb.theta-=dx*SENS; orb.phi=Math.max(PHI_MIN,Math.min(PHI_MAX,orb.phi+dy*SENS)); orb.ix=-dx*SENS; orb.iy=dy*SENS; orb.lx=x; orb.ly=y; }
-function onUp(){ orb.drag=false; }
-renderer.domElement.addEventListener('mousedown', e=>onDown(e.clientX,e.clientY));
-window.addEventListener('mousemove', e=>onMove(e.clientX,e.clientY));
+function onDown(x, y) { orb.drag = true; orb.lx = x; orb.ly = y; orb.ix = orb.iy = 0; autoSpin = false; }
+function onMove(x, y) {
+  if (!orb.drag) return;
+  const dx = x - orb.lx, dy = y - orb.ly;
+  orb.theta -= dx * SENS;
+  orb.phi = Math.max(PHI_MIN, Math.min(PHI_MAX, orb.phi + dy * SENS));
+  orb.ix = -dx * SENS; orb.iy = dy * SENS;
+  orb.lx = x; orb.ly = y;
+}
+function onUp() { orb.drag = false; }
+
+renderer.domElement.addEventListener('mousedown', e => onDown(e.clientX, e.clientY));
+window.addEventListener('mousemove', e => onMove(e.clientX, e.clientY));
 window.addEventListener('mouseup', onUp);
-renderer.domElement.addEventListener('touchstart', e=>{ if(e.touches.length===1) onDown(e.touches[0].clientX,e.touches[0].clientY); },{passive:true});
-window.addEventListener('touchmove', e=>{ if(e.touches.length===1) onMove(e.touches[0].clientX,e.touches[0].clientY); },{passive:true});
-window.addEventListener('touchend', onUp,{passive:true});
-renderer.domElement.addEventListener('wheel', e=>e.preventDefault(),{passive:false});
-let mixer=null; const clock=new THREE.Clock();
-function animate(){ requestAnimationFrame(animate); const dt=clock.getDelta(); if(mixer) mixer.update(dt); if(!orb.drag){ if(autoSpin){ orb.theta+=0.004; } else { orb.theta+=orb.ix; orb.ix*=DAMP; orb.phi=Math.max(PHI_MIN,Math.min(PHI_MAX,orb.phi+orb.iy)); orb.iy*=DAMP; } } applyOrbit(); renderer.render(scene,camera); }
+renderer.domElement.addEventListener('touchstart', e => { if (e.touches.length === 1) onDown(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
+window.addEventListener('touchmove', e => { if (e.touches.length === 1) onMove(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
+window.addEventListener('touchend', onUp, { passive: true });
+renderer.domElement.addEventListener('wheel', e => e.preventDefault(), { passive: false });
+
+let mixer = null;
+const clock = new THREE.Clock();
+
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = clock.getDelta();
+  if (mixer) mixer.update(dt);
+  if (!orb.drag) {
+    if (autoSpin) { orb.theta += 0.004; }
+    else { orb.theta += orb.ix; orb.ix *= DAMP; orb.phi = Math.max(PHI_MIN, Math.min(PHI_MAX, orb.phi + orb.iy)); orb.iy *= DAMP; }
+  }
+  applyOrbit();
+  renderer.render(scene, camera);
+}
 animate();
-const loader=new GLTFLoader();
-const loaderEl=document.getElementById('loader');
-const barFill=document.getElementById('loader-bar-fill');
-const pctEl=document.getElementById('loader-pct');
+
+const loader = new GLTFLoader();
+const loaderEl = document.getElementById('loader');
+const barFill = document.getElementById('loader-bar-fill');
+const pctEl = document.getElementById('loader-pct');
+
+// NOTE: filename matches exactly what is in the GitHub repo
 loader.load('./Minimal%20Audio%20logo.glb',
-  (gltf)=>{
-    const model=gltf.scene;
-    model.traverse(n=>{ if(n.isMesh){ n.castShadow=true; n.receiveShadow=true; if(n.material) n.material.envMapIntensity=0.7; } });
-    const box=new THREE.Box3().setFromObject(model);
-    const center=box.getCenter(new THREE.Vector3()); const size=box.getSize(new THREE.Vector3());
-    const scale=2.2/Math.max(size.x,size.y,size.z);
-    model.position.sub(center.multiplyScalar(scale)); model.scale.setScalar(scale);
-    const box2=new THREE.Box3().setFromObject(model); const c2=box2.getCenter(new THREE.Vector3()); const s2=box2.getSize(new THREE.Vector3());
-    shadowPlane.position.y=box2.min.y-0.001; shadowPlane.visible=true;
-    orb.radius=Math.max(s2.x,s2.y,s2.z)/(2*Math.tan(THREE.MathUtils.degToRad(camera.fov)/2))*1.55;
-    orb.target.copy(c2); orb.phi=Math.PI/2.3; applyOrbit();
+  (gltf) => {
+    const model = gltf.scene;
+    model.traverse(n => {
+      if (n.isMesh) {
+        n.castShadow = true; n.receiveShadow = true;
+        if (n.material) n.material.envMapIntensity = 0.7;
+      }
+    });
+
+    const box = new THREE.Box3().setFromObject(model);
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+    const scale = 2.2 / Math.max(size.x, size.y, size.z);
+    model.position.sub(center.multiplyScalar(scale));
+    model.scale.setScalar(scale);
+
+    const box2 = new THREE.Box3().setFromObject(model);
+    const c2 = box2.getCenter(new THREE.Vector3());
+    const s2 = box2.getSize(new THREE.Vector3());
+    shadowPlane.position.y = box2.min.y - 0.001;
+    shadowPlane.visible = true;
+
+    const fovR = THREE.MathUtils.degToRad(camera.fov);
+    orb.radius = Math.max(s2.x, s2.y, s2.z) / (2 * Math.tan(fovR / 2)) * 1.55;
+    orb.target.copy(c2);
+    orb.phi = Math.PI / 2.3;
+    applyOrbit();
+
     scene.add(model);
-    if(gltf.animations&&gltf.animations.length){ mixer=new THREE.AnimationMixer(model); gltf.animations.forEach(clip=>mixer.clipAction(clip).play()); }
-    barFill.style.width='100%'; pctEl.textContent='100%';
-    setTimeout(()=>{ loaderEl.classList.add('fade'); setTimeout(()=>loaderEl.style.display='none',700); },300);
-    setTimeout(()=>document.getElementById('hint').style.opacity='0',4500);
+
+    if (gltf.animations && gltf.animations.length) {
+      mixer = new THREE.AnimationMixer(model);
+      gltf.animations.forEach(clip => mixer.clipAction(clip).play());
+    }
+
+    barFill.style.width = '100%';
+    pctEl.textContent = '100%';
+    setTimeout(() => {
+      loaderEl.classList.add('fade');
+      setTimeout(() => loaderEl.style.display = 'none', 700);
+    }, 300);
+    setTimeout(() => document.getElementById('hint').classList.add('hide'), 4500);
   },
-  (prog)=>{ if(prog.total>0){ const p=Math.round(prog.loaded/prog.total*100); barFill.style.width=p+'%'; pctEl.textContent=p+'%'; } },
-  (err)=>{ console.error(err); loaderEl.style.display='none'; }
+  (prog) => {
+    if (prog.total > 0) {
+      const p = Math.round(prog.loaded / prog.total * 100);
+      barFill.style.width = p + '%';
+      pctEl.textContent = p + '%';
+    }
+  },
+  (err) => {
+    console.error(err);
+    loaderEl.innerHTML = '<div style="color:rgba(255,255,255,0.4);font-size:11px;letter-spacing:0.1em">Could not load model</div>';
+  }
 );
 </script>
 </body>
