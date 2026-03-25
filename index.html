@@ -49,12 +49,12 @@ var sp=new THREE.Mesh(new THREE.PlaneGeometry(20,20),new THREE.ShadowMaterial({o
 sp.rotation.x=-Math.PI/2;sp.receiveShadow=true;sp.visible=false;S.add(sp);
 function resize(){R.setSize(innerWidth,innerHeight);C.aspect=innerWidth/innerHeight;C.updateProjectionMatrix();}
 resize();window.addEventListener('resize',resize);
-var o={th:.4,ph:Math.PI/2.2,r:3,tg:new THREE.Vector3(),drag:false,lx:0,ly:0,ix:0,iy:0};
+var o={th:0,ph:Math.PI/2,r:3,tg:new THREE.Vector3(),drag:false,lx:0,ly:0,ix:0,iy:0};
 var PM=.1,PX=Math.PI-.1,SN=.005,DM=.9;
 function ao(){var s=Math.sin(o.ph),c=Math.cos(o.ph);C.position.set(o.tg.x+o.r*s*Math.sin(o.th),o.tg.y+o.r*c,o.tg.z+o.r*s*Math.cos(o.th));C.lookAt(o.tg);}
 var spin=true;
 function dn(x,y){o.drag=true;o.lx=x;o.ly=y;o.ix=o.iy=0;spin=false;}
-function mv(x,y){if(!o.drag)return;var dx=x-o.lx,dy=y-o.ly;o.th-=dx*SN;o.ph=Math.max(PM,Math.min(PX,o.ph+dy*SN));o.ix=-dx*SN;o.iy=dy*SN;o.lx=x;o.ly=y;}
+function mv(x,y){if(!o.drag)return;var dx=x-o.lx,dy=y-o.ly;o.th-=dx*SN;o.ph=Math.max(PM,Math.min(PX,o.ph-dy*SN));o.ix=-dx*SN;o.iy=-dy*SN;o.lx=x;o.ly=y;}
 function up(){o.drag=false;}
 R.domElement.addEventListener('mousedown',function(e){dn(e.clientX,e.clientY);});
 window.addEventListener('mousemove',function(e){mv(e.clientX,e.clientY);});
@@ -69,13 +69,14 @@ new THREE.GLTFLoader().load('./model.glb',
   function(g){
     var m=g.scene,mc=0;
     m.traverse(function(n){if(n.isMesh){mc++;n.castShadow=true;n.receiveShadow=true;n.material=new THREE.MeshStandardMaterial({color:new THREE.Color(.85,.85,.85),metalness:1,roughness:.04});}});
-    if(mc===0){err('No meshes found.\nRe-export: select object > Object > Convert > Mesh, then export GLB');return;}
+    if(mc===0){err('No meshes found.');return;}
     var b=new THREE.Box3().setFromObject(m),c=b.getCenter(new THREE.Vector3()),sz=b.getSize(new THREE.Vector3());
-    var sc=2.4/Math.max(sz.x,sz.y,sz.z);m.position.sub(c.multiplyScalar(sc));m.scale.setScalar(sc);
+    var sc=0.5/Math.max(sz.x,sz.y,sz.z);
+    m.position.sub(c.multiplyScalar(sc));m.scale.setScalar(sc);
     var b2=new THREE.Box3().setFromObject(m),c2=b2.getCenter(new THREE.Vector3()),s2=b2.getSize(new THREE.Vector3());
     sp.position.y=b2.min.y-.001;sp.visible=true;
-    o.r=Math.max(s2.x,s2.y,s2.z)/(2*Math.tan(THREE.MathUtils.degToRad(C.fov)/2))*1.6;
-    o.tg.copy(c2);o.ph=Math.PI/2.2;ao();S.add(m);
+    o.r=Math.max(s2.x,s2.y,s2.z)/(2*Math.tan(THREE.MathUtils.degToRad(C.fov)/2))*3.5;
+    o.tg.copy(c2);o.ph=Math.PI/2;ao();S.add(m);
     if(g.animations&&g.animations.length){mx=new THREE.AnimationMixer(m);g.animations.forEach(function(a){mx.clipAction(a).play();});}
     BF.style.width='100%';BP.textContent='100%';
     setTimeout(function(){LE.classList.add('fade');setTimeout(function(){LE.style.display='none';},800);},400);
