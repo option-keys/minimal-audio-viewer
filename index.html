@@ -6,34 +6,31 @@
   <title>Minimal Audio</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    :root { --bg: #080809; --accent: #d4f0e4; --font: 'DM Mono', 'Courier New', monospace; }
-    html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg); font-family: var(--font); -webkit-tap-highlight-color: transparent; touch-action: none; }
+    :root { --bg: #080809; --accent: #d4f0e4; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg); -webkit-tap-highlight-color: transparent; touch-action: none; }
     canvas { display: block; position: fixed; inset: 0; width: 100% !important; height: 100% !important; touch-action: none; }
     #hud { position: fixed; inset: 0; pointer-events: none; z-index: 10; }
-    #label { position: absolute; top: 28px; left: 50%; transform: translateX(-50%); font-size: 10px; letter-spacing: 0.26em; text-transform: uppercase; color: rgba(255,255,255,0.45); white-space: nowrap; }
-    #hint { position: absolute; bottom: 36px; left: 50%; transform: translateX(-50%); font-size: 10px; letter-spacing: 0.18em; color: rgba(255,255,255,0.3); display: flex; align-items: center; gap: 7px; transition: opacity 1.8s ease; white-space: nowrap; }
+    #label { position: absolute; top: 28px; left: 50%; transform: translateX(-50%); font-size: 10px; letter-spacing: 0.28em; text-transform: uppercase; color: rgba(255,255,255,0.35); white-space: nowrap; font-family: 'DM Mono', monospace; }
+    #hint { position: absolute; bottom: 36px; left: 50%; transform: translateX(-50%); font-size: 10px; letter-spacing: 0.16em; color: rgba(255,255,255,0.25); font-family: 'DM Mono', monospace; transition: opacity 2s ease; white-space: nowrap; }
     #hint.hide { opacity: 0; }
-    #loader { position: fixed; inset: 0; z-index: 20; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px; background: var(--bg); transition: opacity 0.6s ease; }
+    #loader { position: fixed; inset: 0; z-index: 20; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; background: var(--bg); transition: opacity 0.8s ease; }
     #loader.fade { opacity: 0; pointer-events: none; }
-    #loader-wordmark { font-size: 11px; letter-spacing: 0.3em; text-transform: uppercase; color: rgba(255,255,255,0.9); }
-    #loader-bar-track { width: min(240px, 60vw); height: 1px; background: rgba(255,255,255,0.1); position: relative; overflow: hidden; }
-    #loader-bar-fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); width: 0%; transition: width 0.15s ease; }
-    #loader-pct { font-size: 10px; letter-spacing: 0.14em; color: rgba(255,255,255,0.3); }
+    #loader-wordmark { font-size: 11px; letter-spacing: 0.32em; text-transform: uppercase; color: rgba(255,255,255,0.85); font-family: 'DM Mono', monospace; }
+    #loader-bar-track { width: min(200px, 55vw); height: 1px; background: rgba(255,255,255,0.08); position: relative; }
+    #loader-bar-fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); width: 0%; transition: width 0.2s ease; }
+    #loader-pct { font-size: 10px; letter-spacing: 0.12em; color: rgba(255,255,255,0.25); font-family: 'DM Mono', monospace; }
   </style>
 </head>
 <body>
-
 <div id="loader">
   <div id="loader-wordmark">Minimal Audio</div>
   <div id="loader-bar-track"><div id="loader-bar-fill"></div></div>
   <div id="loader-pct">0%</div>
 </div>
-
 <div id="hud">
   <div id="label">Minimal Audio</div>
   <div id="hint">drag to rotate</div>
 </div>
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script type="module">
 import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/GLTFLoader.js';
@@ -44,35 +41,69 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputEncoding = THREE.sRGBEncoding;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.15;
+renderer.toneMappingExposure = 1.3;
 renderer.setClearColor(0x080809, 1);
 document.body.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(42, 1, 0.001, 2000);
+const camera = new THREE.PerspectiveCamera(38, 1, 0.001, 2000);
 
-scene.add(new THREE.AmbientLight(0xffffff, 0.35));
-const key = new THREE.DirectionalLight(0xfff6e8, 1.6);
-key.position.set(4, 7, 5); key.castShadow = true;
+// Procedural studio env map for chrome reflections
+function buildStudioEnvMap() {
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  pmrem.compileCubemapShader();
+  const size = 64;
+  function makeCanvas(r, g, b, r2, g2, b2) {
+    const c = document.createElement('canvas');
+    c.width = c.height = size;
+    const ctx = c.getContext('2d');
+    const grad = ctx.createLinearGradient(0, 0, 0, size);
+    grad.addColorStop(0, 'rgb('+r+','+g+','+b+')');
+    grad.addColorStop(1, 'rgb('+r2+','+g2+','+b2+')');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, size, size);
+    return c;
+  }
+  const faces = [
+    makeCanvas(220,200,160, 80,70,50),
+    makeCanvas(40,60,120,  10,15,30),
+    makeCanvas(255,250,230, 200,190,160),
+    makeCanvas(5,5,6,       2,2,3),
+    makeCanvas(60,65,80,    20,22,28),
+    makeCanvas(15,15,18,    8,8,10),
+  ];
+  const cubeTexture = new THREE.CubeTexture(faces);
+  cubeTexture.needsUpdate = true;
+  scene.environment = pmrem.fromCubemap(cubeTexture).texture;
+  pmrem.dispose();
+}
+buildStudioEnvMap();
+
+// Lights
+const key = new THREE.DirectionalLight(0xffffff, 1.0);
+key.position.set(3, 6, 4); key.castShadow = true;
 key.shadow.mapSize.set(2048, 2048);
 key.shadow.camera.near = 0.1; key.shadow.camera.far = 60;
-key.shadow.camera.left = -6; key.shadow.camera.right = 6;
-key.shadow.camera.top = 6; key.shadow.camera.bottom = -6;
-key.shadow.radius = 10; key.shadow.bias = -0.0005;
+key.shadow.camera.left = -4; key.shadow.camera.right = 4;
+key.shadow.camera.top = 4; key.shadow.camera.bottom = -4;
+key.shadow.radius = 8; key.shadow.bias = -0.0005;
 scene.add(key);
-const fill = new THREE.DirectionalLight(0xbbd4ff, 0.55);
-fill.position.set(-5, 2, -3); scene.add(fill);
-const rim = new THREE.DirectionalLight(0xffffff, 0.25);
-rim.position.set(0, -4, -6); scene.add(rim);
-scene.add(new THREE.HemisphereLight(0x7a9ec2, 0x2e2418, 0.55));
+const rim1 = new THREE.DirectionalLight(0x88bbff, 2.0);
+rim1.position.set(-5, 1, -3); scene.add(rim1);
+const rim2 = new THREE.DirectionalLight(0xffcc66, 1.4);
+rim2.position.set(5, -1, -2); scene.add(rim2);
+const rim3 = new THREE.DirectionalLight(0xffffff, 0.8);
+rim3.position.set(0, 5, -5); scene.add(rim3);
+const fill = new THREE.DirectionalLight(0xffffff, 0.2);
+fill.position.set(0, 0, 5); scene.add(fill);
+scene.add(new THREE.AmbientLight(0xffffff, 0.08));
 
 const shadowPlane = new THREE.Mesh(
-  new THREE.PlaneGeometry(30, 30),
-  new THREE.ShadowMaterial({ opacity: 0.15 })
+  new THREE.PlaneGeometry(20, 20),
+  new THREE.ShadowMaterial({ opacity: 0.10 })
 );
 shadowPlane.rotation.x = -Math.PI / 2;
-shadowPlane.receiveShadow = true;
-shadowPlane.visible = false;
+shadowPlane.receiveShadow = true; shadowPlane.visible = false;
 scene.add(shadowPlane);
 
 function resize() {
@@ -81,116 +112,68 @@ function resize() {
 }
 resize(); window.addEventListener('resize', resize);
 
-const orb = { theta: 0.3, phi: Math.PI / 2.3, radius: 3, target: new THREE.Vector3(), drag: false, lx: 0, ly: 0, ix: 0, iy: 0 };
-const PHI_MIN = 0.12, PHI_MAX = Math.PI - 0.12, SENS = 0.005, DAMP = 0.88;
-
+const orb = { theta: 0.4, phi: Math.PI/2.2, radius: 3, target: new THREE.Vector3(), drag: false, lx:0, ly:0, ix:0, iy:0 };
+const PHI_MIN=0.1, PHI_MAX=Math.PI-0.1, SENS=0.005, DAMP=0.90;
 function applyOrbit() {
-  const sp = Math.sin(orb.phi), cp = Math.cos(orb.phi);
-  camera.position.set(
-    orb.target.x + orb.radius * sp * Math.sin(orb.theta),
-    orb.target.y + orb.radius * cp,
-    orb.target.z + orb.radius * sp * Math.cos(orb.theta)
-  );
+  const sp=Math.sin(orb.phi), cp=Math.cos(orb.phi);
+  camera.position.set(orb.target.x+orb.radius*sp*Math.sin(orb.theta), orb.target.y+orb.radius*cp, orb.target.z+orb.radius*sp*Math.cos(orb.theta));
   camera.lookAt(orb.target);
 }
+let autoSpin=true;
+function onDown(x,y){orb.drag=true;orb.lx=x;orb.ly=y;orb.ix=orb.iy=0;autoSpin=false;}
+function onMove(x,y){if(!orb.drag)return;const dx=x-orb.lx,dy=y-orb.ly;orb.theta-=dx*SENS;orb.phi=Math.max(PHI_MIN,Math.min(PHI_MAX,orb.phi+dy*SENS));orb.ix=-dx*SENS;orb.iy=dy*SENS;orb.lx=x;orb.ly=y;}
+function onUp(){orb.drag=false;}
+renderer.domElement.addEventListener('mousedown',e=>onDown(e.clientX,e.clientY));
+window.addEventListener('mousemove',e=>onMove(e.clientX,e.clientY));
+window.addEventListener('mouseup',onUp);
+renderer.domElement.addEventListener('touchstart',e=>{if(e.touches.length===1)onDown(e.touches[0].clientX,e.touches[0].clientY);},{passive:true});
+window.addEventListener('touchmove',e=>{if(e.touches.length===1)onMove(e.touches[0].clientX,e.touches[0].clientY);},{passive:true});
+window.addEventListener('touchend',onUp,{passive:true});
+renderer.domElement.addEventListener('wheel',e=>e.preventDefault(),{passive:false});
+renderer.domElement.addEventListener('gesturestart',e=>e.preventDefault());
 
-let autoSpin = true;
-function onDown(x, y) { orb.drag = true; orb.lx = x; orb.ly = y; orb.ix = orb.iy = 0; autoSpin = false; }
-function onMove(x, y) {
-  if (!orb.drag) return;
-  const dx = x - orb.lx, dy = y - orb.ly;
-  orb.theta -= dx * SENS;
-  orb.phi = Math.max(PHI_MIN, Math.min(PHI_MAX, orb.phi + dy * SENS));
-  orb.ix = -dx * SENS; orb.iy = dy * SENS;
-  orb.lx = x; orb.ly = y;
-}
-function onUp() { orb.drag = false; }
-
-renderer.domElement.addEventListener('mousedown', e => onDown(e.clientX, e.clientY));
-window.addEventListener('mousemove', e => onMove(e.clientX, e.clientY));
-window.addEventListener('mouseup', onUp);
-renderer.domElement.addEventListener('touchstart', e => { if (e.touches.length === 1) onDown(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
-window.addEventListener('touchmove', e => { if (e.touches.length === 1) onMove(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
-window.addEventListener('touchend', onUp, { passive: true });
-renderer.domElement.addEventListener('wheel', e => e.preventDefault(), { passive: false });
-
-let mixer = null;
-const clock = new THREE.Clock();
-
-function animate() {
+let mixer=null; const clock=new THREE.Clock();
+function animate(){
   requestAnimationFrame(animate);
-  const dt = clock.getDelta();
-  if (mixer) mixer.update(dt);
-  if (!orb.drag) {
-    if (autoSpin) { orb.theta += 0.004; }
-    else { orb.theta += orb.ix; orb.ix *= DAMP; orb.phi = Math.max(PHI_MIN, Math.min(PHI_MAX, orb.phi + orb.iy)); orb.iy *= DAMP; }
-  }
-  applyOrbit();
-  renderer.render(scene, camera);
+  const dt=clock.getDelta();
+  if(mixer)mixer.update(dt);
+  if(!orb.drag){if(autoSpin){orb.theta+=0.005;}else{orb.theta+=orb.ix;orb.ix*=DAMP;orb.phi=Math.max(PHI_MIN,Math.min(PHI_MAX,orb.phi+orb.iy));orb.iy*=DAMP;}}
+  applyOrbit(); renderer.render(scene,camera);
 }
 animate();
 
-const loader = new GLTFLoader();
-const loaderEl = document.getElementById('loader');
-const barFill = document.getElementById('loader-bar-fill');
-const pctEl = document.getElementById('loader-pct');
+const loaderEl=document.getElementById('loader');
+const barFill=document.getElementById('loader-bar-fill');
+const pctEl=document.getElementById('loader-pct');
 
-// NOTE: filename matches exactly what is in the GitHub repo
-loader.load('./Minimal%20Audio%20logo.glb',
-  (gltf) => {
-    const model = gltf.scene;
-    model.traverse(n => {
-      if (n.isMesh) {
-        n.castShadow = true; n.receiveShadow = true;
-        if (n.material) n.material.envMapIntensity = 0.7;
-      }
+new GLTFLoader().load('./model.glb',
+  (gltf)=>{
+    const model=gltf.scene;
+    model.traverse(n=>{
+      if(!n.isMesh)return;
+      n.castShadow=true; n.receiveShadow=true;
+      if(n.material){n.material.envMapIntensity=3.0;n.material.needsUpdate=true;}
     });
-
-    const box = new THREE.Box3().setFromObject(model);
-    const center = box.getCenter(new THREE.Vector3());
-    const size = box.getSize(new THREE.Vector3());
-    const scale = 2.2 / Math.max(size.x, size.y, size.z);
-    model.position.sub(center.multiplyScalar(scale));
-    model.scale.setScalar(scale);
-
-    const box2 = new THREE.Box3().setFromObject(model);
-    const c2 = box2.getCenter(new THREE.Vector3());
-    const s2 = box2.getSize(new THREE.Vector3());
-    shadowPlane.position.y = box2.min.y - 0.001;
-    shadowPlane.visible = true;
-
-    const fovR = THREE.MathUtils.degToRad(camera.fov);
-    orb.radius = Math.max(s2.x, s2.y, s2.z) / (2 * Math.tan(fovR / 2)) * 1.55;
-    orb.target.copy(c2);
-    orb.phi = Math.PI / 2.3;
-    applyOrbit();
-
+    const box=new THREE.Box3().setFromObject(model);
+    const center=box.getCenter(new THREE.Vector3());
+    const size=box.getSize(new THREE.Vector3());
+    const scale=2.4/Math.max(size.x,size.y,size.z);
+    model.position.sub(center.multiplyScalar(scale)); model.scale.setScalar(scale);
+    const box2=new THREE.Box3().setFromObject(model);
+    const c2=box2.getCenter(new THREE.Vector3());
+    const s2=box2.getSize(new THREE.Vector3());
+    shadowPlane.position.y=box2.min.y-0.001; shadowPlane.visible=true;
+    const fovR=THREE.MathUtils.degToRad(camera.fov);
+    orb.radius=Math.max(s2.x,s2.y,s2.z)/(2*Math.tan(fovR/2))*1.6;
+    orb.target.copy(c2); orb.phi=Math.PI/2.2; applyOrbit();
     scene.add(model);
-
-    if (gltf.animations && gltf.animations.length) {
-      mixer = new THREE.AnimationMixer(model);
-      gltf.animations.forEach(clip => mixer.clipAction(clip).play());
-    }
-
-    barFill.style.width = '100%';
-    pctEl.textContent = '100%';
-    setTimeout(() => {
-      loaderEl.classList.add('fade');
-      setTimeout(() => loaderEl.style.display = 'none', 700);
-    }, 300);
-    setTimeout(() => document.getElementById('hint').classList.add('hide'), 4500);
+    if(gltf.animations&&gltf.animations.length){mixer=new THREE.AnimationMixer(model);gltf.animations.forEach(clip=>mixer.clipAction(clip).play());}
+    barFill.style.width='100%'; pctEl.textContent='100%';
+    setTimeout(()=>{loaderEl.classList.add('fade');setTimeout(()=>loaderEl.style.display='none',800);},400);
+    setTimeout(()=>document.getElementById('hint').classList.add('hide'),5000);
   },
-  (prog) => {
-    if (prog.total > 0) {
-      const p = Math.round(prog.loaded / prog.total * 100);
-      barFill.style.width = p + '%';
-      pctEl.textContent = p + '%';
-    }
-  },
-  (err) => {
-    console.error(err);
-    loaderEl.innerHTML = '<div style="color:rgba(255,255,255,0.4);font-size:11px;letter-spacing:0.1em">Could not load model</div>';
-  }
+  (prog)=>{if(prog.total>0){const p=Math.round(prog.loaded/prog.total*100);barFill.style.width=p+'%';pctEl.textContent=p+'%';}},
+  (err)=>{console.error('GLB load error:',err);loaderEl.innerHTML='<div style="color:rgba(255,255,255,0.35);font-size:11px;letter-spacing:0.12em;font-family:monospace;text-align:center;padding:40px">Could not load model.glb</div>';}
 );
 </script>
 </body>
