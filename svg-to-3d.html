@@ -15,10 +15,10 @@ canvas{display:block;position:fixed;inset:0;width:100%!important;height:100%!imp
 #dz input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
 #dz p{font:10px/1.6 'Courier New',monospace;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.25);text-align:center}
 #proc{position:fixed;inset:0;z-index:25;display:none;align-items:center;justify-content:center;background:#080809}
-#pmsg{font:10px/1 'Courier New',monospace;letter-spacing:.2em;text-transform:uppercase;color:rgba(255,255,255,.4)}
+#pmsg{font:10px/2 'Courier New',monospace;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.4);text-align:center;padding:24px;max-width:300px}
 #lbl{position:fixed;top:22px;left:50%;transform:translateX(-50%);font:10px/1 'Courier New',monospace;letter-spacing:.28em;text-transform:uppercase;color:rgba(255,255,255,.28);white-space:nowrap;z-index:10;pointer-events:none;display:none}
 #newbtn{position:fixed;top:16px;right:16px;z-index:10;background:none;border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.3);font:9px/1 'Courier New',monospace;letter-spacing:.14em;text-transform:uppercase;padding:7px 11px;cursor:pointer;display:none}
-#ctrl{position:fixed;bottom:0;left:0;right:0;z-index:20;background:rgba(5,5,6,.92);border-top:1px solid rgba(255,255,255,.07);padding:14px 0 20px;display:none;flex-direction:column;gap:10px;align-items:center}
+#ctrl{position:fixed;bottom:0;left:0;right:0;z-index:20;background:rgba(5,5,6,.92);border-top:1px solid rgba(255,255,255,.07);padding:14px 0 22px;display:none;flex-direction:column;gap:10px;align-items:center}
 .row{display:flex;align-items:center;gap:10px;width:300px}
 .rl{font:9px/1 'Courier New',monospace;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.38);width:70px;text-align:right;flex-shrink:0}
 .rs{flex:1;-webkit-appearance:none;appearance:none;height:2px;background:rgba(255,255,255,.18);outline:none;cursor:pointer;touch-action:none;border-radius:1px}
@@ -41,8 +41,8 @@ canvas{display:block;position:fixed;inset:0;width:100%!important;height:100%!imp
 <div id="ctrl">
   <div class="row">
     <span class="rl">depth</span>
-    <input type="range" class="rs" id="sd" min="1" max="100" value="40" step="1"/>
-    <span class="rv" id="vd">40</span>
+    <input type="range" class="rs" id="sd" min="1" max="100" value="30" step="1"/>
+    <span class="rv" id="vd">30</span>
   </div>
   <div class="row">
     <span class="rl">size</span>
@@ -81,7 +81,7 @@ var fl=new THREE.Mesh(new THREE.PlaneGeometry(30,30),new THREE.ShadowMaterial({o
 fl.rotation.x=-Math.PI/2;fl.receiveShadow=true;fl.visible=false;S.add(fl);
 function resize(){R.setSize(innerWidth,innerHeight);C.aspect=innerWidth/innerHeight;C.updateProjectionMatrix();}
 resize();window.addEventListener('resize',resize);
-var o={th:0,ph:Math.PI/2.2,r:4,tx:0,ty:0,tz:0,drag:false,lx:0,ly:0,ix:0,iy:0};
+var o={th:0.3,ph:Math.PI/4,r:4,tx:0,ty:0,tz:0,drag:false,lx:0,ly:0,ix:0,iy:0};
 var DM=.9,PM=.05,PX=Math.PI-.05,SN=.005,spin=false;
 function look(){var s=Math.sin(o.ph),c=Math.cos(o.ph);C.position.set(o.tx+o.r*s*Math.sin(o.th),o.ty+o.r*c,o.tz+o.r*s*Math.cos(o.th));C.lookAt(o.tx,o.ty,o.tz);}
 look();
@@ -97,75 +97,94 @@ window.addEventListener('touchend',pu,{passive:true});
 R.domElement.addEventListener('wheel',function(e){e.preventDefault();},{passive:false});
 (function loop(){requestAnimationFrame(loop);if(!o.drag){if(spin)o.th+=.005;else{o.th+=o.ix;o.ix*=DM;o.ph=Math.max(PM,Math.min(PX,o.ph+o.iy));o.iy*=DM;}}look();R.render(S,C);})();
 var mat=new THREE.MeshStandardMaterial({color:new THREE.Color(.85,.85,.85),metalness:1,roughness:.04});
-var grp=null,shapes=[];
-function build(dp,sp){
-  if(!shapes.length)return;
+var grp=null,rawShapes=[],rawVBW=1,rawVBH=1;
+
+function build(depthPct,sizePct){
+  if(!rawShapes.length)return;
   if(grp){S.remove(grp);}
   grp=new THREE.Group();
-  var depth=0.05+(dp/100)*0.55;
-  var bv=Math.min(depth*.05,.025);
-  var es={depth:depth,bevelEnabled:true,bevelThickness:bv,bevelSize:bv*.7,bevelOffset:0,bevelSegments:4};
+
+  // Depth as fraction of the larger viewBox dimension
+  // depthPct 1-100 -> 2% to 80% of the SVG's own size
+  var maxVB=Math.max(rawVBW,rawVBH);
+  var depth=maxVB*(0.02+(depthPct/100)*0.78);
+  var bv=Math.min(depth*0.04,maxVB*0.015);
+
+  var es={depth:depth,bevelEnabled:true,bevelThickness:bv,bevelSize:bv*0.7,bevelOffset:0,bevelSegments:4};
   var any=false;
-  shapes.forEach(function(sh){
-    try{var geo=new THREE.ExtrudeGeometry(sh,es),m=new THREE.Mesh(geo,mat);m.castShadow=true;grp.add(m);any=true;}catch(e){}
+  rawShapes.forEach(function(sh){
+    try{
+      var geo=new THREE.ExtrudeGeometry(sh,es);
+      var m=new THREE.Mesh(geo,mat);
+      m.castShadow=true;
+      grp.add(m);
+      any=true;
+    }catch(e){}
   });
   if(!any)return;
+
+  // Flip Y (SVG top-down vs Three.js bottom-up)
   grp.scale.y=-1;
-  var sc=sp/100;
-  grp.scale.multiplyScalar(sc);
+
+  // Fit entire mesh into a unit cube, then apply size
   var box=new THREE.Box3().setFromObject(grp);
-  var ctr=box.getCenter(new THREE.Vector3());
   var sz=box.getSize(new THREE.Vector3());
-  grp.position.set(-ctr.x,-ctr.y,-ctr.z);
-  o.r=Math.max(sz.x,sz.y,sz.z)/(2*Math.tan(THREE.MathUtils.degToRad(C.fov)/2))*3;
-  o.tx=0;o.ty=0;o.tz=0;look();
-  fl.position.y=box.min.y-ctr.y-.001;fl.visible=true;
+  var ctr=box.getCenter(new THREE.Vector3());
+  var maxDim=Math.max(sz.x,sz.y,sz.z);
+  // Normalize to 1 unit, then scale by sizePct/100
+  var sc=(sizePct/100)/maxDim;
+  grp.scale.multiplyScalar(sc);
+
+  // Re-center after scale
+  var box2=new THREE.Box3().setFromObject(grp);
+  var ctr2=box2.getCenter(new THREE.Vector3());
+  var sz2=box2.getSize(new THREE.Vector3());
+  grp.position.set(-ctr2.x,-ctr2.y,-ctr2.z);
+
+  // Set camera distance
+  o.r=Math.max(sz2.x,sz2.y,sz2.z)/(2*Math.tan(THREE.MathUtils.degToRad(C.fov)/2))*3;
+  o.tx=0;o.ty=0;o.tz=0;
+  look();
+  fl.position.y=box2.min.y-ctr2.y-.001;fl.visible=true;
   S.add(grp);
 }
-function normShapes(paths,vbW,vbH){
-  var sx=1/vbW,sy=1/vbH,result=[];
-  paths.forEach(function(path){
-    path.toShapes(true).forEach(function(sh){
-      scaleShape(sh,sx,sy);result.push(sh);
-    });
-  });
-  return result;
-}
-function scaleShape(sh,sx,sy){
-  sc2(sh.curves,sx,sy);
-  if(sh.currentPoint){sh.currentPoint.x*=sx;sh.currentPoint.y*=sy;}
-  if(sh.holes)sh.holes.forEach(function(h){sc2(h.curves,sx,sy);});
-}
-function sc2(curves,sx,sy){
-  if(!curves)return;
-  curves.forEach(function(c){
-    ['v','v1','v2'].forEach(function(k){if(c[k]){c[k].x*=sx;c[k].y*=sy;}});
-    if(c.aX!==undefined){c.aX*=sx;c.aY*=sy;}
-    if(c.aRadiusX!==undefined){c.aRadiusX*=sx;c.aRadiusY*=sy;}
-  });
-}
+
 function loadSVG(txt,name){
   document.getElementById('upload').style.display='none';
   document.getElementById('proc').style.display='flex';
+  document.getElementById('pmsg').textContent='Building 3D...';
+  document.getElementById('pmsg').style.color='rgba(255,255,255,.4)';
+
   setTimeout(function(){
     try{
       var loader=new THREE.SVGLoader();
       var data=loader.parse(txt);
-      if(!data.paths||!data.paths.length)throw new Error('No paths found.');
-      var vbW=100,vbH=100;
-      var vb=txt.match(/viewBoxs*=s*["'][^"']*["']/);
-      if(vb){
-        var ns=vb[0].replace(/viewBoxs*=s*["']/,'').replace(/["']/,'').trim().split(/[s,]+/).map(Number);
-        if(ns.length>=4){vbW=ns[2]||100;vbH=ns[3]||100;}
-      } else {
-        var wm=txt.match(/widths*=s*["']([d.]+)/),hm=txt.match(/heights*=s*["']([d.]+)/);
-        if(wm)vbW=parseFloat(wm[1]);if(hm)vbH=parseFloat(hm[1]);
+      if(!data.paths||!data.paths.length)throw new Error('No paths found in SVG.');
+
+      // Get viewBox — use as-is, NO scaling of curves
+      rawVBW=100;rawVBH=100;
+      var vb=txt.match(/viewBoxs*=s*["']s*([d.-]+)s+([d.-]+)s+([d.-]+)s+([d.-]+)s*["']/);
+      if(vb){rawVBW=parseFloat(vb[3])||100;rawVBH=parseFloat(vb[4])||100;}
+      else{
+        var wm=txt.match(/(?:^|[s;]|<svg[^>]+)widths*=s*["']([d.]+)/);
+        var hm=txt.match(/(?:^|[s;]|<svg[^>]+)heights*=s*["']([d.]+)/);
+        if(wm)rawVBW=parseFloat(wm[1]);
+        if(hm)rawVBH=parseFloat(hm[1]);
       }
-      shapes=normShapes(data.paths,vbW,vbH);
-      if(!shapes.length)throw new Error('Could not read shapes.');
+
+      // Extract shapes WITHOUT modifying the curve data
+      rawShapes=[];
+      data.paths.forEach(function(path){
+        path.toShapes(true).forEach(function(sh){rawShapes.push(sh);});
+      });
+      if(!rawShapes.length)throw new Error('Could not read shapes from SVG.');
+
       build(parseInt(document.getElementById('sd').value),parseInt(document.getElementById('ss').value));
-      if(!grp)throw new Error('Extrusion failed.');
-      o.ph=Math.PI/2.2;o.th=0;spin=true;look();
+      if(!grp)throw new Error('Extrusion failed — try a simpler SVG.');
+
+      // Start with a 3/4 angle view so depth is visible
+      o.ph=Math.PI/4; o.th=0.3; spin=true; look();
+
       var lbl=document.getElementById('lbl');
       lbl.textContent=name.replace(/.svg$/i,'').replace(/[-_]/g,' ').toUpperCase();
       lbl.style.display='block';
@@ -178,21 +197,29 @@ function loadSVG(txt,name){
     }
   },60);
 }
+
 document.getElementById('sd').addEventListener('input',function(){document.getElementById('vd').textContent=this.value;build(+this.value,+document.getElementById('ss').value);});
 document.getElementById('ss').addEventListener('input',function(){document.getElementById('vs').textContent=this.value;build(+document.getElementById('sd').value,+this.value);});
 document.getElementById('sb').addEventListener('input',function(){document.getElementById('vb').textContent=this.value;setBright(+this.value);});
-function hf(file){if(!file||!file.name.match(/.svg$/i)){alert('SVG only');return;}var rd=new FileReader();rd.onload=function(e){loadSVG(e.target.result,file.name);};rd.readAsText(file);}
+
+function hf(file){
+  if(!file||!file.name.match(/.svg$/i)){alert('SVG only');return;}
+  var rd=new FileReader();
+  rd.onload=function(e){loadSVG(e.target.result,file.name);};
+  rd.readAsText(file);
+}
 document.getElementById('fi').addEventListener('change',function(e){if(e.target.files[0])hf(e.target.files[0]);});
 document.getElementById('dz').addEventListener('dragover',function(e){e.preventDefault();});
 document.getElementById('dz').addEventListener('drop',function(e){e.preventDefault();if(e.dataTransfer.files[0])hf(e.dataTransfer.files[0]);});
+
 document.getElementById('newbtn').addEventListener('click',function(){
-  if(grp){S.remove(grp);grp=null;}shapes=[];fl.visible=false;spin=false;
+  if(grp){S.remove(grp);grp=null;}rawShapes=[];fl.visible=false;spin=false;
   document.getElementById('ctrl').style.display='none';
   document.getElementById('newbtn').style.display='none';
   document.getElementById('lbl').style.display='none';
   document.getElementById('upload').style.display='flex';
   document.getElementById('fi').value='';
-  document.getElementById('sd').value=40;document.getElementById('vd').textContent='40';
+  document.getElementById('sd').value=30;document.getElementById('vd').textContent='30';
   document.getElementById('ss').value=100;document.getElementById('vs').textContent='100';
   document.getElementById('sb').value=40;document.getElementById('vb').textContent='40';
   setBright(40);
