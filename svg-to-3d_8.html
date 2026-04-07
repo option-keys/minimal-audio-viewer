@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+<title>SVG to 3D</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:#0a0a0b;touch-action:none}
+canvas{display:block;position:fixed;inset:0;width:100%!important;height:100%!important;touch-action:none}
+#upload{position:fixed;inset:0;z-index:30;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;background:#0a0a0b}
+#utitle{font:11px/1 'Courier New',monospace;letter-spacing:.4em;text-transform:uppercase;color:rgba(255,255,255,.45)}
+#dz{width:280px;height:160px;border:1px solid rgba(255,255,255,.12);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;cursor:pointer;position:relative;transition:border-color .2s}
+#dz:hover{border-color:rgba(212,240,228,.5)}
+#dz input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+#dz p{font:10px/1.6 'Courier New',monospace;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.25);text-align:center}
+#proc{position:fixed;inset:0;z-index:25;display:none;align-items:center;justify-content:center;background:#0a0a0b}
+#pmsg{font:10px/2 'Courier New',monospace;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.4);text-align:center;padding:24px;max-width:300px;white-space:pre-wrap}
+#lbl{position:fixed;top:22px;left:50%;transform:translateX(-50%);font:10px/1 'Courier New',monospace;letter-spacing:.28em;text-transform:uppercase;color:rgba(255,255,255,.3);white-space:nowrap;z-index:10;pointer-events:none;display:none}
+#newbtn{position:fixed;top:16px;right:16px;z-index:10;background:none;border:1px solid rgba(255,255,255,.14);color:rgba(255,255,255,.35);font:9px/1 'Courier New',monospace;letter-spacing:.14em;text-transform:uppercase;padding:7px 11px;cursor:pointer;display:none}
+#ctrl{position:fixed;bottom:0;left:0;right:0;z-index:20;background:rgba(4,4,5,.94);border-top:1px solid rgba(255,255,255,.07);padding:14px 0 24px;display:none;flex-direction:column;gap:11px;align-items:center}
+.row{display:flex;align-items:center;gap:10px;width:300px}
+.rl{font:9px/1 'Courier New',monospace;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.4);width:70px;text-align:right;flex-shrink:0}
+.rs{flex:1;-webkit-appearance:none;appearance:none;height:2px;background:rgba(255,255,255,.16);outline:none;cursor:pointer;touch-action:none;border-radius:1px}
+.rs::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:#d4f0e4;cursor:pointer}
+.rs::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:#d4f0e4;border:none;cursor:pointer}
+.rv{font:9px/1 'Courier New',monospace;color:rgba(255,255,255,.3);width:28px;flex-shrink:0}
+</style>
+</head>
+<body>
+<div id="upload">
+  <div id="utitle">SVG to 3D Chrome</div>
+  <div id="dz">
+    <input type="file" id="fi" accept=".svg,image/svg+xml"/>
+    <p>Drop SVG here<br>or tap to browse</p>
+  </div>
+</div>
+<div id="proc"><p id="pmsg">Building 3D...</p></div>
+<div id="lbl"></div>
+<button id="newbtn">&#8592; new svg</button>
+<div id="ctrl">
+  <div class="row">
+    <span class="rl">depth</span>
+    <input type="range" class="rs" id="sd" min="1" max="100" value="30" step="1"/>
+    <span class="rv" id="vd">30</span>
+  </div>
+  <div class="row">
+    <span class="rl">size</span>
+    <input type="range" class="rs" id="ss" min="20" max="200" value="100" step="1"/>
+    <span class="rv" id="vs">100</span>
+  </div>
+  <div class="row">
+    <span class="rl">brightness</span>
+    <input type="range" class="rs" id="sb" min="0" max="100" value="55" step="1"/>
+    <span class="rv" id="vb">55</span>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/SVGLoader.js"></script>
+<script>
+
+// ── Renderer ──────────────────────────────────────────────────────────
+var R = new THREE.WebGLRenderer({antialias:true, powerPreference:'high-performance'});
+R.setPixelRatio(Math.min(devicePixelRatio, 2));
+R.shadowMap.enabled = true;
+R.shadowMap.type = THREE.PCFSoftShadowMap;
+R.outputEncoding = THREE.sRGBEncoding;
+R.toneMapping = THREE.ACESFilmicToneMapping;
+R.toneMappingExposure = 1.8;   // brighter overall exposure
+R.setClearColor(0x0a0a0b, 1);
+document.body.appendChild(R.domElement);
+
+var S = new THREE.Scene();
+var C = new THREE.PerspectiveCamera(40, 1, 0.001, 1000);
+
+// ── Lighting — tuned for bright silver chrome ─────────────────────────
+// Base values already bright; brightness slider scales up from here
+var BL = {
+  kl: 3.0,   // key
+  f1: 2.5, f2: 2.5, f3: 2.0, // three front fills
+  b1: 1.5, b2: 1.5,           // two back rims
+  top:1.5, bot:1.0,
+  amb:0.8
+};
+var ML = {
+  kl: 5.0,
+  f1: 4.5, f2: 4.5, f3: 3.5,
+  b1: 3.0, b2: 3.0,
+  top:3.0, bot:2.0,
+  amb:1.5
+};
+
+function mk(hex, int, x, y, z) {
+  var l = new THREE.DirectionalLight(hex, int);
+  l.position.set(x, y, z);
+  return l;
+}
+
+var kl  = mk(0xffffff, BL.kl,  3,  6,  5); kl.castShadow = true;
+kl.shadow.mapSize.width = kl.shadow.mapSize.height = 1024;
+kl.shadow.camera.near=.1; kl.shadow.camera.far=30;
+kl.shadow.camera.left=kl.shadow.camera.bottom=-4;
+kl.shadow.camera.right=kl.shadow.camera.top=4;
+kl.shadow.radius=6; kl.shadow.bias=-.001;
+
+// Front fills — lots of them so chrome is bright from any angle
+var f1  = mk(0xffffff, BL.f1, -4,  1,  6);
+var f2  = mk(0xffffff, BL.f2,  4,  1,  6);
+var f3  = mk(0xffffff, BL.f3,  0,  3,  6);
+// Back rims for edge highlights
+var b1  = mk(0xaaccff, BL.b1, -4,  2, -4);
+var b2  = mk(0xffd9aa, BL.b2,  4,  2, -4);
+// Top/bottom
+var top = mk(0xffffff, BL.top, 0,  6,  0);
+var bot = mk(0xffffff, BL.bot, 0, -4,  2);
+var amb = new THREE.AmbientLight(0xffffff, BL.amb);
+
+[kl, f1, f2, f3, b1, b2, top, bot, amb].forEach(function(l){ S.add(l); });
+
+function setBright(v) {
+  var t = v / 100;
+  function lerp(a, b) { return a + (b-a)*t; }
+  kl.intensity  = lerp(BL.kl,  ML.kl);
+  f1.intensity  = lerp(BL.f1,  ML.f1);
+  f2.intensity  = lerp(BL.f2,  ML.f2);
+  f3.intensity  = lerp(BL.f3,  ML.f3);
+  b1.intensity  = lerp(BL.b1,  ML.b1);
+  b2.intensity  = lerp(BL.b2,  ML.b2);
+  top.intensity = lerp(BL.top, ML.top);
+  bot.intensity = lerp(BL.bot, ML.bot);
+  amb.intensity = lerp(BL.amb, ML.amb);
+}
+setBright(55);
+
+// ── Floor shadow ──────────────────────────────────────────────────────
+var fl = new THREE.Mesh(
+  new THREE.PlaneGeometry(30, 30),
+  new THREE.ShadowMaterial({opacity: 0.06})
+);
+fl.rotation.x = -Math.PI/2;
+fl.receiveShadow = true;
+fl.visible = false;
+S.add(fl);
+
+// ── Resize ────────────────────────────────────────────────────────────
+function resize() {
+  R.setSize(innerWidth, innerHeight);
+  C.aspect = innerWidth / innerHeight;
+  C.updateProjectionMatrix();
+}
+resize();
+window.addEventListener('resize', resize);
+
+// ── Orbit ─────────────────────────────────────────────────────────────
+var o = {th:0.3, ph:Math.PI/4, r:4, drag:false, lx:0, ly:0, ix:0, iy:0};
+var DM=.9, PM=.05, PX=Math.PI-.05, SN=.005, spin=false;
+
+function look() {
+  var s = Math.sin(o.ph), c = Math.cos(o.ph);
+  C.position.set(o.r*s*Math.sin(o.th), o.r*c, o.r*s*Math.cos(o.th));
+  C.lookAt(0, 0, 0);
+}
+look();
+
+function pd(x,y){o.drag=true;o.lx=x;o.ly=y;o.ix=o.iy=0;spin=false;}
+function pm(x,y){if(!o.drag)return;var dx=x-o.lx,dy=y-o.ly;o.th-=dx*SN;o.ph=Math.max(PM,Math.min(PX,o.ph-dy*SN));o.ix=-dx*SN;o.iy=-dy*SN;o.lx=x;o.ly=y;}
+function pu(){o.drag=false;}
+
+R.domElement.addEventListener('mousedown',function(e){pd(e.clientX,e.clientY);});
+window.addEventListener('mousemove',function(e){pm(e.clientX,e.clientY);});
+window.addEventListener('mouseup',pu);
+R.domElement.addEventListener('touchstart',function(e){if(e.touches.length===1)pd(e.touches[0].clientX,e.touches[0].clientY);},{passive:true});
+window.addEventListener('touchmove',function(e){if(e.touches.length===1)pm(e.touches[0].clientX,e.touches[0].clientY);},{passive:true});
+window.addEventListener('touchend',pu,{passive:true});
+R.domElement.addEventListener('wheel',function(e){e.preventDefault();},{passive:false});
+
+(function loop(){
+  requestAnimationFrame(loop);
+  if(!o.drag){
+    if(spin) o.th+=.005;
+    else {o.th+=o.ix;o.ix*=DM;o.ph=Math.max(PM,Math.min(PX,o.ph+o.iy));o.iy*=DM;}
+  }
+  look();
+  R.render(S, C);
+})();
+
+// ── Chrome material ───────────────────────────────────────────────────
+// Pure polished silver: near-white, low roughness, full metalness
+var mat = new THREE.MeshStandardMaterial({
+  color:     new THREE.Color(1.0, 1.0, 1.0),  // pure white base
+  metalness: 0.95,
+  roughness: 0.10   // slightly more roughness = more diffuse silver, less black-mirror
+});
+
+// ── Mesh builder ─────────────────────────────────────────────────────
+var grp = null;
+var rawShapes = [];
+var rawVBW = 100, rawVBH = 100;
+
+function build(depthPct, sizePct) {
+  if (!rawShapes.length) return;
+  if (grp) { S.remove(grp); grp = null; }
+
+  grp = new THREE.Group();
+
+  // Depth proportional to SVG's own coordinate space
+  var maxVB = Math.max(rawVBW, rawVBH);
+  var depth  = maxVB * (0.02 + (depthPct/100) * 0.78);
+  var bv     = Math.min(depth * 0.04, maxVB * 0.015);
+
+  var es = {
+    depth: depth,
+    bevelEnabled: true,
+    bevelThickness: bv,
+    bevelSize: bv * 0.7,
+    bevelOffset: 0,
+    bevelSegments: 4
+  };
+
+  var any = false;
+  rawShapes.forEach(function(sh) {
+    try {
+      var geo  = new THREE.ExtrudeGeometry(sh, es);
+      var mesh = new THREE.Mesh(geo, mat);
+      mesh.castShadow = true;
+      grp.add(mesh);
+      any = true;
+    } catch(e) {}
+  });
+  if (!any) return;
+
+  // ── FIX: normalize then size then flip — all separate, no multiply ──
+  // 1. Get raw bounds (SVG space, Y not flipped yet)
+  grp.scale.set(1, 1, 1);
+  grp.position.set(0, 0, 0);
+  var box0 = new THREE.Box3().setFromObject(grp);
+  var sz0  = box0.getSize(new THREE.Vector3());
+  var ctr0 = box0.getCenter(new THREE.Vector3());
+
+  // 2. Normalize scale: fit largest dimension to 1 unit, apply user size
+  var maxDim = Math.max(sz0.x, sz0.y, sz0.z);
+  var sc = (sizePct / 100) / maxDim;  // e.g. sizePct=100 → 1 unit tall
+
+  // 3. Apply scale: +X, -Y (SVG flip), +Z
+  grp.scale.set(sc, -sc, sc);
+
+  // 4. Re-center based on new scale
+  var cx = ctr0.x * sc;
+  var cy = -ctr0.y * sc;   // Y is flipped
+  var cz = ctr0.z * sc;
+  grp.position.set(-cx, -cy, -cz);
+
+  // 5. Camera — compute actual bounds after position+scale
+  var box1 = new THREE.Box3().setFromObject(grp);
+  var sz1  = box1.getSize(new THREE.Vector3());
+  o.r = Math.max(sz1.x, sz1.y, sz1.z) / (2 * Math.tan(THREE.MathUtils.degToRad(C.fov)/2)) * 3.2;
+  look();
+
+  fl.position.y = box1.min.y - 0.001;
+  fl.visible = true;
+
+  S.add(grp);
+}
+
+// ── SVG loader ───────────────────────────────────────────────────────
+function loadSVG(txt, name) {
+  document.getElementById('upload').style.display = 'none';
+  document.getElementById('proc').style.display   = 'flex';
+  document.getElementById('pmsg').textContent = 'Building 3D...';
+  document.getElementById('pmsg').style.color = 'rgba(255,255,255,.4)';
+
+  setTimeout(function() {
+    try {
+      var loader = new THREE.SVGLoader();
+      var data   = loader.parse(txt);
+      if (!data.paths || !data.paths.length) throw new Error('No paths found in SVG.');
+
+      // Parse viewBox
+      rawVBW = 100; rawVBH = 100;
+      var vb = txt.match(/viewBox\s*=\s*["']\s*([\d.\-]+)[\s,]+([\d.\-]+)[\s,]+([\d.\-]+)[\s,]+([\d.\-]+)\s*["']/);
+      if (vb) {
+        rawVBW = parseFloat(vb[3]) || 100;
+        rawVBH = parseFloat(vb[4]) || 100;
+      } else {
+        var wm = txt.match(/\bwidth\s*=\s*["']([\d.]+)/);
+        var hm = txt.match(/\bheight\s*=\s*["']([\d.]+)/);
+        if (wm) rawVBW = parseFloat(wm[1]);
+        if (hm) rawVBH = parseFloat(hm[1]);
+      }
+
+      // Extract shapes — NO manual curve scaling, keep native SVG coords
+      rawShapes = [];
+      data.paths.forEach(function(path) {
+        path.toShapes(true).forEach(function(sh) { rawShapes.push(sh); });
+      });
+      if (!rawShapes.length) throw new Error('Could not read shapes from SVG.');
+
+      build(
+        parseInt(document.getElementById('sd').value),
+        parseInt(document.getElementById('ss').value)
+      );
+      if (!grp) throw new Error('Extrusion failed — try a simpler SVG.');
+
+      // Start at 3/4 angle so depth is immediately visible
+      o.ph = Math.PI/4; o.th = 0.3; spin = true; look();
+
+      var lbl = document.getElementById('lbl');
+      lbl.textContent = name.replace(/\.svg$/i,'').replace(/[-_]/g,' ').toUpperCase();
+      lbl.style.display = 'block';
+
+      document.getElementById('proc').style.display = 'none';
+      document.getElementById('ctrl').style.display = 'flex';
+      document.getElementById('newbtn').style.display = 'block';
+
+    } catch(e) {
+      document.getElementById('pmsg').style.color = '#f88';
+      document.getElementById('pmsg').textContent = e.message;
+    }
+  }, 60);
+}
+
+// ── Sliders ──────────────────────────────────────────────────────────
+document.getElementById('sd').addEventListener('input', function(){
+  document.getElementById('vd').textContent = this.value;
+  build(+this.value, +document.getElementById('ss').value);
+});
+document.getElementById('ss').addEventListener('input', function(){
+  document.getElementById('vs').textContent = this.value;
+  build(+document.getElementById('sd').value, +this.value);
+});
+document.getElementById('sb').addEventListener('input', function(){
+  document.getElementById('vb').textContent = this.value;
+  setBright(+this.value);
+});
+
+// ── File handling ─────────────────────────────────────────────────────
+function hf(file) {
+  if (!file || !file.name.match(/\.svg$/i)) { alert('SVG files only'); return; }
+  var rd = new FileReader();
+  rd.onload = function(e) { loadSVG(e.target.result, file.name); };
+  rd.readAsText(file);
+}
+document.getElementById('fi').addEventListener('change', function(e){
+  if (e.target.files[0]) hf(e.target.files[0]);
+});
+document.getElementById('dz').addEventListener('dragover', function(e){ e.preventDefault(); });
+document.getElementById('dz').addEventListener('drop', function(e){
+  e.preventDefault();
+  if (e.dataTransfer.files[0]) hf(e.dataTransfer.files[0]);
+});
+
+// ── Reset ─────────────────────────────────────────────────────────────
+document.getElementById('newbtn').addEventListener('click', function(){
+  if (grp) { S.remove(grp); grp = null; }
+  rawShapes = []; fl.visible = false; spin = false;
+  document.getElementById('ctrl').style.display   = 'none';
+  document.getElementById('newbtn').style.display = 'none';
+  document.getElementById('lbl').style.display    = 'none';
+  document.getElementById('upload').style.display = 'flex';
+  document.getElementById('fi').value = '';
+  document.getElementById('sd').value=30; document.getElementById('vd').textContent='30';
+  document.getElementById('ss').value=100; document.getElementById('vs').textContent='100';
+  document.getElementById('sb').value=55; document.getElementById('vb').textContent='55';
+  setBright(55);
+});
+</script>
+</body>
+</html>
