@@ -54,7 +54,7 @@ var CHROME=new THREE.MeshStandardMaterial({color:new THREE.Color(1,1,1),metalnes
 var PMG=new THREE.PMREMGenerator(WR);
 PMG.compileEquirectangularShader();
 function applyEnv(tex){var rt=PMG.fromEquirectangular(tex);CHROME.envMap=rt.texture;CHROME.needsUpdate=true;SC.environment=rt.texture;tex.dispose();}
-new THREE.RGBELoader().setDataType(THREE.UnsignedByteType).load('https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/studio_small_08_1k.hdr',function(t){applyEnv(t);PMG.dispose();},undefined,function(){var cv=document.createElement('canvas');cv.width=512;cv.height=256;var ctx=cv.getContext('2d'),g=ctx.createLinearGradient(0,0,0,256);g.addColorStop(0,'#ffffff');g.addColorStop(0.3,'#d0d8e8');g.addColorStop(0.7,'#808898');g.addColorStop(1,'#202428');ctx.fillStyle=g;ctx.fillRect(0,0,512,256);ctx.fillStyle='rgba(255,255,255,1)';ctx.fillRect(160,0,192,60);ctx.fillStyle='rgba(255,255,255,0.7)';ctx.fillRect(0,0,80,256);ctx.fillRect(432,0,80,256);var t=new THREE.CanvasTexture(cv);t.mapping=THREE.EquirectangularReflectionMapping;applyEnv(t);PMG.dispose();});
+new THREE.RGBELoader().setDataType(THREE.UnsignedByteType).load('https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/studio_small_08_1k.hdr',function(t){applyEnv(t);PMG.dispose();},undefined,function(){var cv=document.createElement('canvas');cv.width=512;cv.height=256;var ctx=cv.getContext('2d'),g=ctx.createLinearGradient(0,0,0,256);g.addColorStop(0,'#ffffff');g.addColorStop(0.3,'#d0d8e8');g.addColorStop(0.7,'#808898');g.addColorStop(1,'#202428');ctx.fillStyle=g;ctx.fillRect(0,0,512,256);ctx.fillStyle='rgba(255,255,255,0.95)';ctx.fillRect(160,0,192,60);ctx.fillStyle='rgba(255,255,255,0.6)';ctx.fillRect(0,0,80,256);ctx.fillRect(432,0,80,256);var t=new THREE.CanvasTexture(cv);t.mapping=THREE.EquirectangularReflectionMapping;applyEnv(t);PMG.dispose();});
 function addDL(c,i,x,y,z){var l=new THREE.DirectionalLight(c,i);l.position.set(x,y,z);SC.add(l);}
 addDL(0xffffff,0.6,3,5,3);addDL(0xffffff,0.4,-3,2,3);addDL(0xffffff,0.3,0,-3,3);
 SC.add(new THREE.AmbientLight(0xffffff,0.05));
@@ -64,7 +64,7 @@ function onResize(){WR.setSize(innerWidth,innerHeight);CAM.aspect=innerWidth/inn
 onResize();window.addEventListener('resize',onResize);
 var CAMDIST=4,TH=0.4,PH=Math.PI/4,DRAG=false,LX=0,LY=0,IX=0,IY=0,SPIN=false;
 var DMP=0.9,PHMIN=0.05,PHMAX=Math.PI-0.05,SENS=0.005;
-function updateCam(){var s=Math.sin(PH),c=Math.cos(PH);CAM.position.set(CAMDIST*s*Math.sin(TH),CAMDIST*c,CAMDIST*s*Math.cos(TH));CAM.lookAt(0,0,0);}
+function updateCam(){var sinPH=Math.sin(PH),cosPH=Math.cos(PH);CAM.position.set(CAMDIST*sinPH*Math.sin(TH),CAMDIST*cosPH,CAMDIST*sinPH*Math.cos(TH));CAM.lookAt(0,0,0);}
 updateCam();
 function dstart(x,y){DRAG=true;LX=x;LY=y;IX=IY=0;SPIN=false;}
 function dmove(x,y){if(!DRAG)return;var dx=x-LX,dy=y-LY;TH-=dx*SENS;PH=Math.max(PHMIN,Math.min(PHMAX,PH-dy*SENS));IX=-dx*SENS;IY=-dy*SENS;LX=x;LY=y;}
@@ -77,12 +77,12 @@ window.addEventListener('touchmove',function(e){if(e.touches.length===1)dmove(e.
 window.addEventListener('touchend',dend,{passive:true});
 WR.domElement.addEventListener('wheel',function(e){e.preventDefault();},{passive:false});
 (function loop(){requestAnimationFrame(loop);if(!DRAG){if(SPIN)TH+=0.005;else{TH+=IX;IX*=DMP;PH=Math.max(PHMIN,Math.min(PHMAX,PH+IY));IY*=DMP;}}updateCam();WR.render(SC,CAM);})();
-var WRAP=null,GEO=null,SVGSHAPES=[],SVGW=100,SVGH=100,RAW_CTR=new THREE.Vector3();
+var WRAP=null,GEO=null,SVGSHAPES=[],SVGW=100,SVGH=100,RAW_CX=0,RAW_CY=0,RAW_CZ=0;
 function applySize(sp){
   if(!WRAP)return;
   var sc=sp/100;
   WRAP.scale.set(sc,-sc,sc);
-  WRAP.position.set(-RAW_CTR.x*sc,RAW_CTR.y*sc,-RAW_CTR.z*sc);
+  WRAP.position.set(-RAW_CX*sc,RAW_CY*sc,-RAW_CZ*sc);
   var fovRad=CAM.fov*Math.PI/180;
   CAMDIST=sc/(2*Math.tan(fovRad/2))*3.5;
   updateCam();
@@ -98,10 +98,11 @@ function buildGeo(dp){
   GEO.scale.set(1,1,1);GEO.position.set(0,0,0);
   var rawBox=new THREE.Box3().setFromObject(GEO);
   var rawSz=rawBox.getSize(new THREE.Vector3());
-  rawBox.getCenter(RAW_CTR);
+  var rawCtr=rawBox.getCenter(new THREE.Vector3());
   var norm=1.0/Math.max(rawSz.x,rawSz.y,rawSz.z);
   GEO.scale.set(norm,norm,norm);
-  GEO.position.set(-RAW_CTR.x*norm,-RAW_CTR.y*norm,-RAW_CTR.z*norm);
+  GEO.position.set(-rawCtr.x*norm,-rawCtr.y*norm,-rawCtr.z*norm);
+  RAW_CX=rawCtr.x*norm; RAW_CY=rawCtr.y*norm; RAW_CZ=rawCtr.z*norm;
   WRAP=new THREE.Group();
   WRAP.add(GEO);
   SC.add(WRAP);
@@ -115,14 +116,14 @@ function loadSVG(svgText,fname){
   setTimeout(function(){
     try{
       var parsed=new THREE.SVGLoader().parse(svgText);
-      if(!parsed.paths||!parsed.paths.length)throw new Error('No paths found.');
+      if(!parsed.paths||!parsed.paths.length)throw new Error('No paths found in SVG.');
       SVGW=100;SVGH=100;
       var vm=svgText.match(/viewBoxs*=s*["']s*([d.-]+)[s,]+([d.-]+)[s,]+([d.-]+)[s,]+([d.-]+)s*["']/);
       if(vm){SVGW=parseFloat(vm[3])||100;SVGH=parseFloat(vm[4])||100;}
       else{var wm=svgText.match(/widths*=s*["']([d.]+)/),hm=svgText.match(/heights*=s*["']([d.]+)/);if(wm)SVGW=parseFloat(wm[1]);if(hm)SVGH=parseFloat(hm[1]);}
       SVGSHAPES=[];
       parsed.paths.forEach(function(p){p.toShapes(true).forEach(function(sh){SVGSHAPES.push(sh);});});
-      if(!SVGSHAPES.length)throw new Error('Could not read shapes.');
+      if(!SVGSHAPES.length)throw new Error('Could not read shapes from SVG.');
       buildGeo(parseInt(document.getElementById('sd').value));
       if(!WRAP)throw new Error('Extrusion failed.');
       PH=Math.PI/4;TH=0.4;SPIN=true;updateCam();
