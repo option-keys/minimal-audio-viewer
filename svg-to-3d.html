@@ -41,156 +41,118 @@ canvas{display:block;position:fixed;inset:0;width:100%!important;height:100%!imp
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/SVGLoader.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/RGBELoader.js"></script>
 <script>
-var renderer = new THREE.WebGLRenderer({antialias:true});
-renderer.setPixelRatio(Math.min(devicePixelRatio,2));
-renderer.outputEncoding = THREE.sRGBEncoding;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.0;
-renderer.setClearColor(0x0a0a0b,1);
-document.body.appendChild(renderer.domElement);
-
-var scene = new THREE.Scene();
-var camera = new THREE.PerspectiveCamera(40,1,0.001,1000);
-
-var chromeMat = new THREE.MeshStandardMaterial({
-  color: new THREE.Color(1,1,1),
-  metalness: 1.0,
-  roughness: 0.05,
-  envMapIntensity: 1.5
-});
-
-var pmremGen = new THREE.PMREMGenerator(renderer);
-pmremGen.compileEquirectangularShader();
-function applyEnv(tex){
-  var rt = pmremGen.fromEquirectangular(tex);
-  chromeMat.envMap = rt.texture;
-  chromeMat.needsUpdate = true;
-  scene.environment = rt.texture;
-  tex.dispose();
-}
+var WR = new THREE.WebGLRenderer({antialias:true});
+WR.setPixelRatio(Math.min(devicePixelRatio,2));
+WR.outputEncoding = THREE.sRGBEncoding;
+WR.toneMapping = THREE.ACESFilmicToneMapping;
+WR.toneMappingExposure = 1.0;
+WR.setClearColor(0x0a0a0b,1);
+document.body.appendChild(WR.domElement);
+var SC = new THREE.Scene();
+var CAM = new THREE.PerspectiveCamera(40,1,0.001,1000);
+var CHROME = new THREE.MeshStandardMaterial({color:new THREE.Color(1,1,1),metalness:1.0,roughness:0.05,envMapIntensity:1.5});
+var PMG = new THREE.PMREMGenerator(WR);
+PMG.compileEquirectangularShader();
+function applyEnv(tex){var rt=PMG.fromEquirectangular(tex);CHROME.envMap=rt.texture;CHROME.needsUpdate=true;SC.environment=rt.texture;tex.dispose();}
 new THREE.RGBELoader().setDataType(THREE.UnsignedByteType).load(
   'https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/studio_small_08_1k.hdr',
-  function(tex){applyEnv(tex);pmremGen.dispose();},
-  undefined,
+  function(t){applyEnv(t);PMG.dispose();},undefined,
   function(){
     var cv=document.createElement('canvas');cv.width=512;cv.height=256;
-    var ctx=cv.getContext('2d');
-    var g=ctx.createLinearGradient(0,0,0,256);
+    var ctx=cv.getContext('2d'),g=ctx.createLinearGradient(0,0,0,256);
     g.addColorStop(0,'#ffffff');g.addColorStop(0.3,'#d0d8e8');g.addColorStop(0.7,'#808898');g.addColorStop(1,'#202428');
     ctx.fillStyle=g;ctx.fillRect(0,0,512,256);
     ctx.fillStyle='rgba(255,255,255,1)';ctx.fillRect(160,0,192,60);
     ctx.fillStyle='rgba(255,255,255,0.7)';ctx.fillRect(0,0,80,256);ctx.fillRect(432,0,80,256);
     var t=new THREE.CanvasTexture(cv);t.mapping=THREE.EquirectangularReflectionMapping;
-    applyEnv(t);pmremGen.dispose();
+    applyEnv(t);PMG.dispose();
   }
 );
-
-function addDirLight(col,intens,x,y,z){var l=new THREE.DirectionalLight(col,intens);l.position.set(x,y,z);scene.add(l);return l;}
-addDirLight(0xffffff,0.6,3,5,3);
-addDirLight(0xffffff,0.4,-3,2,3);
-addDirLight(0xffffff,0.3,0,-3,3);
-scene.add(new THREE.AmbientLight(0xffffff,0.05));
-
-function setBright(v){
-  var t=v/100;
-  renderer.toneMappingExposure=0.3+t*1.8;
-  chromeMat.envMapIntensity=0.5+t*2.0;
-  chromeMat.needsUpdate=true;
-}
+function addDL(c,i,x,y,z){var l=new THREE.DirectionalLight(c,i);l.position.set(x,y,z);SC.add(l);}
+addDL(0xffffff,0.6,3,5,3);addDL(0xffffff,0.4,-3,2,3);addDL(0xffffff,0.3,0,-3,3);
+SC.add(new THREE.AmbientLight(0xffffff,0.05));
+function setBright(v){var t=v/100;WR.toneMappingExposure=0.3+t*1.8;CHROME.envMapIntensity=0.5+t*2.0;CHROME.needsUpdate=true;}
 setBright(50);
-
-function onResize(){renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();}
+function onResize(){WR.setSize(innerWidth,innerHeight);CAM.aspect=innerWidth/innerHeight;CAM.updateProjectionMatrix();}
 onResize();window.addEventListener('resize',onResize);
+var CAMDIST=4,TH=0.4,PH=Math.PI/4,DRAG=false,LX=0,LY=0,IX=0,IY=0,SPIN=false;
+var DMP=0.9,PHMIN=0.05,PHMAX=Math.PI-0.05,SENS=0.005;
+function updateCam(){var s=Math.sin(PH),c=Math.cos(PH);CAM.position.set(CAMDIST*s*Math.sin(TH),CAMDIST*c,CAMDIST*s*Math.cos(TH));CAM.lookAt(0,0,0);}
+updateCam();
+function dstart(x,y){DRAG=true;LX=x;LY=y;IX=IY=0;SPIN=false;}
+function dmove(x,y){if(!DRAG)return;var dx=x-LX,dy=y-LY;TH-=dx*SENS;PH=Math.max(PHMIN,Math.min(PHMAX,PH-dy*SENS));IX=-dx*SENS;IY=-dy*SENS;LX=x;LY=y;}
+function dend(){DRAG=false;}
+WR.domElement.addEventListener('mousedown',function(e){dstart(e.clientX,e.clientY);});
+window.addEventListener('mousemove',function(e){dmove(e.clientX,e.clientY);});
+window.addEventListener('mouseup',dend);
+WR.domElement.addEventListener('touchstart',function(e){if(e.touches.length===1)dstart(e.touches[0].clientX,e.touches[0].clientY);},{passive:true});
+window.addEventListener('touchmove',function(e){if(e.touches.length===1)dmove(e.touches[0].clientX,e.touches[0].clientY);},{passive:true});
+window.addEventListener('touchend',dend,{passive:true});
+WR.domElement.addEventListener('wheel',function(e){e.preventDefault();},{passive:false});
+(function loop(){requestAnimationFrame(loop);if(!DRAG){if(SPIN)TH+=0.005;else{TH+=IX;IX*=DMP;PH=Math.max(PHMIN,Math.min(PHMAX,PH+IY));IY*=DMP;}}updateCam();WR.render(SC,CAM);})();
 
-var camDist=4, orbitTh=0.4, orbitPh=Math.PI/4;
-var isDragging=false,lastX=0,lastY=0,inertX=0,inertY=0,autoSpin=false;
-var DAMP=0.9,PH_MIN=0.05,PH_MAX=Math.PI-0.05,SENS=0.005;
+// KEY DESIGN: one inner geometry group (GEO) rebuilt only when depth changes
+// one outer wrapper (WRAP) that only gets scaled for size — no geometry rebuild needed
+var WRAP = null;  // outer wrapper — only scale changes for size
+var GEO  = null;  // inner group with actual meshes
+var SVGSHAPES = [], SVGW = 100, SVGH = 100;
+var RAW_MAX = 1;  // largest raw dimension at scale=1, cached after first build
 
-function updateCamera(){
-  var sinPh=Math.sin(orbitPh), cosPh=Math.cos(orbitPh);
-  camera.position.set(camDist*sinPh*Math.sin(orbitTh), camDist*cosPh, camDist*sinPh*Math.cos(orbitTh));
-  camera.lookAt(0,0,0);
+function applySize(sizePct) {
+  if(!WRAP) return;
+  // sizePct 100 = 1 world unit tall
+  var sc = sizePct / 100;
+  WRAP.scale.set(sc, -sc, sc);
+  // Re-center based on raw center scaled by sc
+  WRAP.position.set(-RAW_CTR.x*sc, RAW_CTR.y*sc, -RAW_CTR.z*sc);
+  // Update camera distance
+  var fovRad = CAM.fov * Math.PI / 180;
+  CAMDIST = sc / (2 * Math.tan(fovRad/2)) * 3.5;
+  updateCam();
 }
-updateCamera();
 
-function onDragStart(x,y){isDragging=true;lastX=x;lastY=y;inertX=inertY=0;autoSpin=false;}
-function onDragMove(x,y){
-  if(!isDragging)return;
-  var dx=x-lastX,dy=y-lastY;
-  orbitTh-=dx*SENS;
-  orbitPh=Math.max(PH_MIN,Math.min(PH_MAX,orbitPh-dy*SENS));
-  inertX=-dx*SENS;inertY=-dy*SENS;lastX=x;lastY=y;
-}
-function onDragEnd(){isDragging=false;}
+var RAW_CTR = new THREE.Vector3();
 
-renderer.domElement.addEventListener('mousedown',function(e){onDragStart(e.clientX,e.clientY);});
-window.addEventListener('mousemove',function(e){onDragMove(e.clientX,e.clientY);});
-window.addEventListener('mouseup',onDragEnd);
-renderer.domElement.addEventListener('touchstart',function(e){if(e.touches.length===1)onDragStart(e.touches[0].clientX,e.touches[0].clientY);},{passive:true});
-window.addEventListener('touchmove',function(e){if(e.touches.length===1)onDragMove(e.touches[0].clientX,e.touches[0].clientY);},{passive:true});
-window.addEventListener('touchend',onDragEnd,{passive:true});
-renderer.domElement.addEventListener('wheel',function(e){e.preventDefault();},{passive:false});
+function buildGeo(depthPct) {
+  // Remove old
+  if(WRAP) { SC.remove(WRAP); WRAP=null; GEO=null; }
+  if(!SVGSHAPES.length) return;
 
-(function animLoop(){
-  requestAnimationFrame(animLoop);
-  if(!isDragging){
-    if(autoSpin)orbitTh+=0.005;
-    else{orbitTh+=inertX;inertX*=DAMP;orbitPh=Math.max(PH_MIN,Math.min(PH_MAX,orbitPh+inertY));inertY*=DAMP;}
-  }
-  updateCamera();
-  renderer.render(scene,camera);
-})();
+  GEO = new THREE.Group();
+  var maxVB = Math.max(SVGW, SVGH);
+  var depth = maxVB * (0.02 + (depthPct/100) * 0.78);
+  var bevel = Math.min(depth*0.05, maxVB*0.02);
+  var es = {depth:depth, bevelEnabled:true, bevelThickness:bevel, bevelSize:bevel*0.8, bevelOffset:0, bevelSegments:5};
 
-var meshGroup=null, svgShapes=[], svgVBW=100, svgVBH=100;
-
-function buildMesh(depthPct, sizePct){
-  if(!svgShapes.length)return;
-  if(meshGroup){scene.remove(meshGroup);meshGroup=null;}
-
-  meshGroup = new THREE.Group();
-  var maxVB = Math.max(svgVBW,svgVBH);
-  var depth  = maxVB*(0.02+(depthPct/100)*0.78);
-  var bevel  = Math.min(depth*0.05,maxVB*0.02);
-  var extSettings = {depth:depth,bevelEnabled:true,bevelThickness:bevel,bevelSize:bevel*0.8,bevelOffset:0,bevelSegments:5};
-
-  svgShapes.forEach(function(sh){
-    try{
-      var geo=new THREE.ExtrudeGeometry(sh,extSettings);
-      geo.computeVertexNormals();
-      meshGroup.add(new THREE.Mesh(geo,chromeMat));
-    }catch(e){}
+  SVGSHAPES.forEach(function(sh){
+    try{var geo=new THREE.ExtrudeGeometry(sh,es);geo.computeVertexNormals();GEO.add(new THREE.Mesh(geo,CHROME));}catch(e){}
   });
-  if(!meshGroup.children.length)return;
+  if(!GEO.children.length) return;
 
-  // Measure raw bounds at neutral scale
-  meshGroup.scale.set(1,1,1);
-  meshGroup.position.set(0,0,0);
-  var rawBox = new THREE.Box3().setFromObject(meshGroup);
-  var rawSize = rawBox.getSize(new THREE.Vector3());
-  var rawCenter = rawBox.getCenter(new THREE.Vector3());
+  // Measure raw bounds at scale=1 (no flip yet)
+  GEO.scale.set(1,1,1);
+  GEO.position.set(0,0,0);
+  var rawBox = new THREE.Box3().setFromObject(GEO);
+  var rawSz  = rawBox.getSize(new THREE.Vector3());
+  RAW_MAX = Math.max(rawSz.x, rawSz.y, rawSz.z);
+  rawBox.getCenter(RAW_CTR);
 
-  // Scale: fit largest dim to 1 unit, multiply by sizePct/100, flip Y for SVG
-  var normScale = (sizePct/100) / Math.max(rawSize.x, rawSize.y, rawSize.z);
-  meshGroup.scale.set(normScale, -normScale, normScale);
+  // Normalize GEO so 1 world unit = full size at sizePct=100
+  var norm = 1.0 / RAW_MAX;
+  GEO.scale.set(norm, norm, norm);  // uniform, no flip yet
+  GEO.position.set(-RAW_CTR.x*norm, -RAW_CTR.y*norm, -RAW_CTR.z*norm);
 
-  // Re-center: raw center scaled, Y negated because scale.y is negative
-  meshGroup.position.set(
-    -rawCenter.x * normScale,
-     rawCenter.y * normScale,
-    -rawCenter.z * normScale
-  );
+  // WRAP handles flip (Y) and user size
+  WRAP = new THREE.Group();
+  WRAP.add(GEO);
+  SC.add(WRAP);
 
-  // Camera distance from final world-space bounding box
-  var finalBox = new THREE.Box3().setFromObject(meshGroup);
-  var finalSize = finalBox.getSize(new THREE.Vector3());
-  var fovRad = camera.fov * Math.PI / 180;
-  camDist = Math.max(finalSize.x, finalSize.y, finalSize.z) / (2*Math.tan(fovRad/2)) * 3.5;
-  updateCamera();
-
-  scene.add(meshGroup);
+  // Apply current size (includes Y flip)
+  var sizePct = parseInt(document.getElementById('ss').value);
+  applySize(sizePct);
 }
 
-function loadSVG(svgText, filename){
+function loadSVG(svgText, fname) {
   document.getElementById('upload').style.display='none';
   document.getElementById('proc').style.display='flex';
   document.getElementById('pmsg').style.color='rgba(255,255,255,.4)';
@@ -198,18 +160,18 @@ function loadSVG(svgText, filename){
   setTimeout(function(){
     try{
       var parsed = new THREE.SVGLoader().parse(svgText);
-      if(!parsed.paths||!parsed.paths.length)throw new Error('No paths found in SVG.');
-      svgVBW=100;svgVBH=100;
-      var vbMatch=svgText.match(/viewBoxs*=s*["']s*([d.-]+)[s,]+([d.-]+)[s,]+([d.-]+)[s,]+([d.-]+)s*["']/);
-      if(vbMatch){svgVBW=parseFloat(vbMatch[3])||100;svgVBH=parseFloat(vbMatch[4])||100;}
-      else{var wm=svgText.match(/widths*=s*["']([d.]+)/),hm=svgText.match(/heights*=s*["']([d.]+)/);if(wm)svgVBW=parseFloat(wm[1]);if(hm)svgVBH=parseFloat(hm[1]);}
-      svgShapes=[];
-      parsed.paths.forEach(function(p){p.toShapes(true).forEach(function(sh){svgShapes.push(sh);});});
-      if(!svgShapes.length)throw new Error('Could not read shapes from SVG.');
-      buildMesh(+document.getElementById('sd').value,+document.getElementById('ss').value);
-      if(!meshGroup||!meshGroup.children.length)throw new Error('Extrusion failed.');
-      orbitPh=Math.PI/4;orbitTh=0.4;autoSpin=true;updateCamera();
-      var lbl=document.getElementById('lbl');lbl.textContent=filename.replace(/.svg$/i,'').replace(/[-_]/g,' ').toUpperCase();lbl.style.display='block';
+      if(!parsed.paths||!parsed.paths.length) throw new Error('No paths found in SVG.');
+      SVGW=100;SVGH=100;
+      var vm=svgText.match(/viewBoxs*=s*["']s*([d.-]+)[s,]+([d.-]+)[s,]+([d.-]+)[s,]+([d.-]+)s*["']/);
+      if(vm){SVGW=parseFloat(vm[3])||100;SVGH=parseFloat(vm[4])||100;}
+      else{var wm=svgText.match(/widths*=s*["']([d.]+)/),hm=svgText.match(/heights*=s*["']([d.]+)/);if(wm)SVGW=parseFloat(wm[1]);if(hm)SVGH=parseFloat(hm[1]);}
+      SVGSHAPES=[];
+      parsed.paths.forEach(function(p){p.toShapes(true).forEach(function(sh){SVGSHAPES.push(sh);});});
+      if(!SVGSHAPES.length) throw new Error('Could not read shapes from SVG.');
+      buildGeo(parseInt(document.getElementById('sd').value));
+      if(!WRAP) throw new Error('Extrusion failed.');
+      PH=Math.PI/4;TH=0.4;SPIN=true;updateCam();
+      var lbl=document.getElementById('lbl');lbl.textContent=fname.replace(/.svg$/i,'').replace(/[-_]/g,' ').toUpperCase();lbl.style.display='block';
       document.getElementById('proc').style.display='none';
       document.getElementById('ctrl').style.display='flex';
       document.getElementById('newbtn').style.display='block';
@@ -220,16 +182,26 @@ function loadSVG(svgText, filename){
   },60);
 }
 
-document.getElementById('sd').addEventListener('input',function(){document.getElementById('vd').textContent=this.value;buildMesh(+this.value,+document.getElementById('ss').value);});
-document.getElementById('ss').addEventListener('input',function(){document.getElementById('vs').textContent=this.value;buildMesh(+document.getElementById('sd').value,+this.value);});
-document.getElementById('sb').addEventListener('input',function(){document.getElementById('vb').textContent=this.value;setBright(+this.value);});
+// Depth rebuilds geometry, size just rescales wrapper
+document.getElementById('sd').addEventListener('input',function(){
+  document.getElementById('vd').textContent=this.value;
+  buildGeo(+this.value);
+});
+document.getElementById('ss').addEventListener('input',function(){
+  document.getElementById('vs').textContent=this.value;
+  applySize(+this.value);  // NO geometry rebuild — just scale!
+});
+document.getElementById('sb').addEventListener('input',function(){
+  document.getElementById('vb').textContent=this.value;
+  setBright(+this.value);
+});
 
 function handleFile(f){if(!f||!f.name.match(/.svg$/i)){alert('SVG only');return;}var rd=new FileReader();rd.onload=function(e){loadSVG(e.target.result,f.name);};rd.readAsText(f);}
 document.getElementById('fi').addEventListener('change',function(e){if(e.target.files[0])handleFile(e.target.files[0]);});
 document.getElementById('dz').addEventListener('dragover',function(e){e.preventDefault();});
 document.getElementById('dz').addEventListener('drop',function(e){e.preventDefault();if(e.dataTransfer.files[0])handleFile(e.dataTransfer.files[0]);});
 document.getElementById('newbtn').addEventListener('click',function(){
-  if(meshGroup){scene.remove(meshGroup);meshGroup=null;}svgShapes=[];autoSpin=false;
+  if(WRAP){SC.remove(WRAP);WRAP=null;GEO=null;}SVGSHAPES=[];SPIN=false;
   document.getElementById('ctrl').style.display='none';document.getElementById('newbtn').style.display='none';document.getElementById('lbl').style.display='none';document.getElementById('upload').style.display='flex';document.getElementById('fi').value='';
   document.getElementById('sd').value=30;document.getElementById('vd').textContent='30';
   document.getElementById('ss').value=100;document.getElementById('vs').textContent='100';
