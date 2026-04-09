@@ -55,7 +55,23 @@ var mat=new THREE.MeshStandardMaterial({color:new THREE.Color(1,1,1),metalness:1
 var pmg=new THREE.PMREMGenerator(ren);
 pmg.compileEquirectangularShader();
 function applyEnv(tex){var rt=pmg.fromEquirectangular(tex);mat.envMap=rt.texture;mat.needsUpdate=true;scn.environment=rt.texture;tex.dispose();}
-new THREE.RGBELoader().setDataType(THREE.UnsignedByteType).load('https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/studio_small_08_1k.hdr',function(t){applyEnv(t);pmg.dispose();},undefined,function(){var cv=document.createElement('canvas');cv.width=512;cv.height=256;var ctx=cv.getContext('2d'),g=ctx.createLinearGradient(0,0,0,256);g.addColorStop(0,'#ffffff');g.addColorStop(0.3,'#d0d8e8');g.addColorStop(0.7,'#808898');g.addColorStop(1,'#202428');ctx.fillStyle=g;ctx.fillRect(0,0,512,256);ctx.fillStyle='rgba(255,255,255,0.95)';ctx.fillRect(160,0,192,60);ctx.fillStyle='rgba(255,255,255,0.6)';ctx.fillRect(0,0,80,256);ctx.fillRect(432,0,80,256);var t=new THREE.CanvasTexture(cv);t.mapping=THREE.EquirectangularReflectionMapping;applyEnv(t);pmg.dispose();});
+new THREE.RGBELoader().setDataType(THREE.UnsignedByteType).load(
+  'https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/studio_small_08_1k.hdr',
+  function(t){applyEnv(t);pmg.dispose();},
+  undefined,
+  function(){
+    var cv=document.createElement('canvas');cv.width=512;cv.height=256;
+    var ctx=cv.getContext('2d'),g=ctx.createLinearGradient(0,0,0,256);
+    g.addColorStop(0,'#ffffff');g.addColorStop(0.3,'#d0d8e8');
+    g.addColorStop(0.7,'#808898');g.addColorStop(1,'#202428');
+    ctx.fillStyle=g;ctx.fillRect(0,0,512,256);
+    ctx.fillStyle='rgba(255,255,255,0.95)';ctx.fillRect(160,0,192,60);
+    ctx.fillStyle='rgba(255,255,255,0.6)';ctx.fillRect(0,0,80,256);ctx.fillRect(432,0,80,256);
+    var t=new THREE.CanvasTexture(cv);
+    t.mapping=THREE.EquirectangularReflectionMapping;
+    applyEnv(t);pmg.dispose();
+  }
+);
 function addDL(c,i,x,y,z){var l=new THREE.DirectionalLight(c,i);l.position.set(x,y,z);scn.add(l);}
 addDL(0xffffff,0.6,3,5,3);addDL(0xffffff,0.4,-3,2,3);addDL(0xffffff,0.3,0,-3,3);
 scn.add(new THREE.AmbientLight(0xffffff,0.05));
@@ -93,7 +109,9 @@ function buildGeo(dp){
   geo=new THREE.Group();
   var mVB=Math.max(vbW,vbH),depth=mVB*(0.02+(dp/100)*0.78),bv=Math.min(depth*0.05,mVB*0.02);
   var es={depth:depth,bevelEnabled:true,bevelThickness:bv,bevelSize:bv*0.8,bevelOffset:0,bevelSegments:5};
-  svgShapes.forEach(function(sh){try{var g=new THREE.ExtrudeGeometry(sh,es);g.computeVertexNormals();geo.add(new THREE.Mesh(g,mat));}catch(e){}});
+  svgShapes.forEach(function(sh){
+    try{var g=new THREE.ExtrudeGeometry(sh,es);g.computeVertexNormals();geo.add(new THREE.Mesh(g,mat));}catch(e){}
+  });
   if(!geo.children.length)return;
   geo.scale.set(1,1,1);geo.position.set(0,0,0);
   var bb=new THREE.Box3().setFromObject(geo);
@@ -115,35 +133,58 @@ window.loadSVG=function(svgText,fname){
       var p=new THREE.SVGLoader().parse(svgText);
       if(!p.paths||!p.paths.length)throw new Error('No paths found.');
       vbW=100;vbH=100;
-      var vm=svgText.match(/viewBoxs*=s*["']s*([d.-]+)[s,]+([d.-]+)[s,]+([d.-]+)[s,]+([d.-]+)s*["']/);
+      var vm=svgText.match(/viewBox\s*=\s*["']\s*([\d.\-]+)[\s,]+([\d.\-]+)[\s,]+([\d.\-]+)[\s,]+([\d.\-]+)\s*["']/);
       if(vm){vbW=parseFloat(vm[3])||100;vbH=parseFloat(vm[4])||100;}
-      else{var wm=svgText.match(/widths*=s*["']([d.]+)/),hm=svgText.match(/heights*=s*["']([d.]+)/);if(wm)vbW=parseFloat(wm[1]);if(hm)vbH=parseFloat(hm[1]);}
-      svgShapes=[];p.paths.forEach(function(pt){pt.toShapes(true).forEach(function(sh){svgShapes.push(sh);});});
+      else{
+        var wm=svgText.match(/\bwidth\s*=\s*["']([\d.]+)/);
+        var hm=svgText.match(/\bheight\s*=\s*["']([\d.]+)/);
+        if(wm)vbW=parseFloat(wm[1]);
+        if(hm)vbH=parseFloat(hm[1]);
+      }
+      svgShapes=[];
+      p.paths.forEach(function(pt){pt.toShapes(true).forEach(function(sh){svgShapes.push(sh);});});
       if(!svgShapes.length)throw new Error('Could not read shapes.');
       buildGeo(parseInt(document.getElementById('sd').value));
       if(!wrap)throw new Error('Extrusion failed.');
       ph=Math.PI/4;th=0.4;spin=true;updCam();
-      var lbl=document.getElementById('lbl');lbl.textContent=fname.replace(/.svg$/i,'').replace(/[-_]/g,' ').toUpperCase();lbl.style.display='block';
+      var lbl=document.getElementById('lbl');
+      lbl.textContent=fname.replace(/\.svg$/i,'').replace(/[-_]/g,' ').toUpperCase();
+      lbl.style.display='block';
       document.getElementById('proc').style.display='none';
       document.getElementById('ctrl').style.display='flex';
       document.getElementById('newbtn').style.display='block';
-    }catch(err){document.getElementById('pmsg').style.color='#f66';document.getElementById('pmsg').textContent=err.message;}
+    }catch(err){
+      document.getElementById('pmsg').style.color='#f66';
+      document.getElementById('pmsg').textContent=err.message;
+    }
   },60);
 };
 document.getElementById('sd').addEventListener('input',function(){document.getElementById('vd').textContent=this.value;buildGeo(+this.value);});
 document.getElementById('ss').addEventListener('input',function(){document.getElementById('vs').textContent=this.value;applySize(+this.value);});
 document.getElementById('sb').addEventListener('input',function(){document.getElementById('vb').textContent=this.value;setBright(+this.value);});
-function hf(f){if(!f||!f.name.match(/.svg$/i)){alert('SVG only');return;}var rd=new FileReader();rd.onload=function(e){loadSVG(e.target.result,f.name);};rd.readAsText(f);}
+function hf(f){
+  if(!f||!f.name.match(/\.svg$/i)){alert('SVG only');return;}
+  var rd=new FileReader();
+  rd.onload=function(e){loadSVG(e.target.result,f.name);};
+  rd.readAsText(f);
+}
 document.getElementById('fi').addEventListener('change',function(e){if(e.target.files[0])hf(e.target.files[0]);});
 document.getElementById('dz').addEventListener('dragover',function(e){e.preventDefault();});
 document.getElementById('dz').addEventListener('drop',function(e){e.preventDefault();if(e.dataTransfer.files[0])hf(e.dataTransfer.files[0]);});
 document.getElementById('newbtn').addEventListener('click',function(){
-  if(wrap){scn.remove(wrap);wrap=null;geo=null;}svgShapes=[];spin=false;
-  document.getElementById('ctrl').style.display='none';document.getElementById('newbtn').style.display='none';document.getElementById('lbl').style.display='none';document.getElementById('upload').style.display='flex';document.getElementById('fi').value='';
+  if(wrap){scn.remove(wrap);wrap=null;geo=null;}
+  svgShapes=[];spin=false;
+  document.getElementById('ctrl').style.display='none';
+  document.getElementById('newbtn').style.display='none';
+  document.getElementById('lbl').style.display='none';
+  document.getElementById('upload').style.display='flex';
+  document.getElementById('fi').value='';
   document.getElementById('sd').value=30;document.getElementById('vd').textContent='30';
   document.getElementById('ss').value=100;document.getElementById('vs').textContent='100';
   document.getElementById('sb').value=50;document.getElementById('vb').textContent='50';
   setBright(50);
 });
 })();
-</script></body></html>
+</script>
+</body>
+</html>
