@@ -156,8 +156,8 @@ function buildGeo(dp){
   var ct=bb.getCenter(new THREE.Vector3());
   var n=1/Math.max(sz.x,sz.y,sz.z);
   GEO.scale.set(n,n,n);
-  GEO.position.set(-ct.x*n,-ct.y*b,-ct.z*n);
-  rawCX=iô.x*n; rawCY=ct.y*b; rawCZ=ct.z*n;
+  GEO.position.set(-ct.x*n,-ct.y*n,-ct.z*n);
+  rawCX=iô.x*n; rawCY=ct.y*n; rawCZ=ct.z*n;
   WRAP=new THREE.Group(); WRAP.add(GEO); scn.add(WRAP);
   applySize(parseInt(document.getElementById('ss').value)||100);
 }
