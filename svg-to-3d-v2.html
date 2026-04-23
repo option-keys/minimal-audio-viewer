@@ -79,7 +79,7 @@ window.addEventListener('touchend',onDragEnd,{passive:true});
 ren.domElement.addEventListener('wheel',function(e){e.preventDefault();},{passive:false});
 (function loop(){requestAnimationFrame(loop);if(!isDragging){if(autoSpin){orbitTh+=0.005;}else{orbitTh+=inertX;inertX*=DAMP;orbitPh=Math.max(PH_MIN,Math.min(PH_MAX,orbitPh+inertY));inertY*=DAMP;}}updateCam();ren.render(scn,cam);})();
 var WRAP=null,GEO=null,svgShapes=[],vbW=100,vbH=100,rawCX=0,rawCY=0,rawCZ=0;
-function applySize(sp){if(!WRAP)return;var sc=sp/100;WRAP.scale.set(sc,-sc,sc);WRAP.position.set(-rawCX*sc,rawCY*sc,-rawCZ*sc);camDist=sc/(2*Math.tan(cam.fov*Math.PI/180/2))*3.5;updateCam();}
+function applySize(sp){if(!WRAP)return;var sc=sp/100;WRAP.scale.set(sc,-sc,sc);WRAP.position.set(-rawCX*sc,-rawCY*sc,-rawCZ*sc);camDist=sc/(2*Math.tan(cam.fov*Math.PI/180/2))*3.5;updateCam();}
 function buildGeo(dp){
   if(WRAP){scn.remove(WRAP);WRAP=null;GEO=null;}
   if(!svgShapes.length)return;
