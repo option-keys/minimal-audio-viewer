@@ -79,7 +79,7 @@ window.addEventListener('touchend',onDragEnd,{passive:true});
 ren.domElement.addEventListener('wheel',function(e){e.preventDefault();},{passive:false});
 (function loop(){requestAnimationFrame(loop);if(!isDragging){if(autoSpin){orbitTh+=0.005;}else{orbitTh+=inertX;inertX*=DAMP;orbitPh=Math.max(PH_MIN,Math.min(PH_MAX,orbitPh+inertY));inertY*=DAMP;}}updateCam();ren.render(scn,cam);})();
 var WRAP=null,GEO=null,svgShapes=[],vbW=100,vbH=100,rawCX=0,rawCY=0,rawCZ=0;
-function applySize(sp){if(!WRAP)return;var sc=sp/100;WRAP.scale.set(sc,-sc,sc);WRAP.position.set(0,0,0);camDist=2.5*sc;updateCam();}
+function applySize(sp){if(!WRAP)return;var sc=sp/100;WRAP.scale.set(sc,-sc,sc);WRAP.position.set(0,0,0);}
 function buildGeo(dp){
   if(WRAP){scn.remove(WRAP);WRAP=null;GEO=null;}
   if(!svgShapes.length)return;
@@ -133,6 +133,7 @@ function loadSVG(txt,fname){
 function handleFile(f){if(!f||!f.name.match(/[.]svg$/i)){alert('SVG only');return;}var rd=new FileReader();rd.onload=function(e){loadSVG(e.target.result,f.name);};rd.readAsText(f);}
 document.getElementById('fi').addEventListener('change',function(e){var f=e.target.files&&e.target.files[0];if(f)handleFile(f);});
 var dz=document.getElementById('dz');
+dz.addEventListener('click',function(e){document.getElementById('fi').click();});
 dz.addEventListener('dragover',function(e){e.preventDefault();e.stopPropagation();dz.classList.add('over');});
 dz.addEventListener('dragleave',function(){dz.classList.remove('over');});
 dz.addEventListener('drop',function(e){e.preventDefault();e.stopPropagation();dz.classList.remove('over');var f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0];if(f)handleFile(f);});
