@@ -45,7 +45,7 @@ canvas{display:block;position:fixed;inset:0;width:100%!important;height:100%!imp
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/RGBELoader.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.6/dist/umd/ffmpeg.js"></script>
 <script>
-var ren = new THREE.WebGLRenderer({antialias:true});
+var ren = new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});
 ren.setPixelRatio(Math.min(devicePixelRatio,2));
 ren.outputEncoding = THREE.sRGBEncoding;
 ren.toneMapping = THREE.ACESFilmicToneMapping;
@@ -159,7 +159,7 @@ function initFfmpeg(ok,err){
     }).then(function(){ffmpegReady=true;ok();}).catch(err);
   }catch(e){err(e);}
 }
-function setExp(t,a){var b=document.getElementById('expbtn');b.textContent=t;b.style.color=a?'rgba(212,240,228,.8)":'rgba(255,255,255,.35)';b.style.borderColor=a?'rgba(212,240,228,.4)":'rgba(255,255,255,.14)';}
+function setExp(t,a){var b=document.getElementById('expbtn');b.textContent=t;b.style.color=a?'rgba(212,240,228,.8)':'rgba(255,255,255,.35)';b.style.borderColor=a?'rgba(212,240,228,.4)':'rgba(255,255,255,.14)';}
 document.getElementById('expbtn').addEventListener('click',function(){
   if(isExporting||!WRAP)return;
   isExporting=true;setExp('loading...',true);
