@@ -41,58 +41,96 @@ canvas{display:block;position:fixed;inset:0;width:100%!important;height:100%!imp
   <div class="row"><span class="rl">color</span><input type="range" class="rs" id="sc" min="0" max="360" value="0" step="1" style="background:linear-gradient(to right,hsl(0,80%,60%),hsl(45,80%,60%),hsl(90,80%,60%),hsl(135,80%,60%),hsl(180,80%,60%),hsl(225,80%,60%),hsl(270,80%,60%),hsl(315,80%,60%),hsl(360,80%,60%))"/><span class="rv" id="vc">0</span></div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js">
-// Export 15s loop
+// Export 15s MP4 loop
 var isExporting=false;
+var ffmpegLoaded=false;
+var ffmpegInst=null;
+
+function loadFfmpeg(cb){
+  if(ffmpegLoaded){cb();return;}
+  var f=new FFmpegWASM.FFmpeg();
+  f.load({
+    coreURL:'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js',
+    wasmURL:'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.wasm'
+  }).then(function(){
+    ffmpegInst=f;ffmpegLoaded=true;cb();
+  }).catch(function(e){alert('ffmpeg failed to load: '+e.message);});
+}
+
 document.getElementById('expbtn').addEventListener('click',function(){
   if(isExporting)return;
   if(!WRAP)return;
   var btn=document.getElementById('expbtn');
-  var supported=typeof MediaRecorder!=='undefined'&&MediaRecorder.isTypeSupported('video/webm;codecs=vp9');
-  var mimeType=supported?'video/webm;codecs=vp9':'video/webm';
-  var stream=ren.domElement.captureStream(30);
-  var rec=new MediaRecorder(stream,{mimeType:mimeType,videoBitsPerSecond:8000000});
-  var chunks=[];
-  rec.ondataavailable=function(e){if(e.data.size>0)chunks.push(e.data);};
-  rec.onstop=function(){
-    var blob=new Blob(chunks,{type:mimeType});
-    var a=document.createElement('a');
-    a.href=URL.createObjectURL(blob);
-    a.download='svg-3d-loop.webm';
-    a.click();
-    isExporting=false;
-    btn.textContent='\u21b5 export';
-    btn.style.color='rgba(255,255,255,.35)';
-    btn.style.borderColor='rgba(255,255,255,.14)';
-  };
-  // Store current state, force clean full rotation
-  var savedTh=orbitTh,savedPh=orbitPh,savedSpin=autoSpin,savedDist=camDist;
-  orbitPh=Math.PI/5;
-  var startTh=orbitTh;
-  var dur=15000;
-  var startTime=null;
   isExporting=true;
-  btn.textContent='recording...';
+  btn.textContent='loading...';
   btn.style.color='rgba(212,240,228,.8)';
   btn.style.borderColor='rgba(212,240,228,.4)';
-  autoSpin=false;
-  isDragging=false;
-  rec.start();
-  function exportFrame(ts){
-    if(!startTime)startTime=ts;
-    var elapsed=ts-startTime;
-    var progress=Math.min(elapsed/dur,1);
-    orbitTh=startTh+(Math.PI*2)*progress;
-    updateCam();
-    ren.render(scn,cam);
-    if(progress<1){requestAnimationFrame(exportFrame);}
-    else{rec.stop();orbitTh=savedTh;orbitPh=savedPh;autoSpin=savedSpin;camDist=savedDist;}
-  }
-  requestAnimationFrame(exportFrame);
+
+  loadFfmpeg(function(){
+    var mimeType=MediaRecorder.isTypeSupported('video/webm;codecs=vp9')?'video/webm;codecs=vp9':'video/webm';
+    var stream=ren.domElement.captureStream(30);
+    var rec=new MediaRecorder(stream,{mimeType:mimeType,videoBitsPerSecond:10000000});
+    var chunks=[];
+    rec.ondataavailable=function(e){if(e.data.size>0)chunks.push(e.data);};
+    rec.onstop=function(){
+      btn.textContent='converting...';
+      var webmBlob=new Blob(chunks,{type:'video/webm'});
+      var reader=new FileReader();
+      reader.onload=function(ev){
+        var ab=ev.target.result;
+        var uint8=new Uint8Array(ab);
+        ffmpegInst.writeFile('input.webm',uint8).then(function(){
+          return ffmpegInst.exec(['-i','input.webm','-vcodec','libx264','-pix_fmt','yuv420p','-movflags','+faststart','output.mp4']);
+        }).then(function(){
+          return ffmpegInst.readFile('output.mp4');
+        }).then(function(data){
+          var blob=new Blob([data instanceof Uint8Array?data.buffer:data],{type:'video/mp4'});
+          var a=document.createElement('a');
+          a.href=URL.createObjectURL(blob);
+          a.download='svg-3d-loop.mp4';
+          a.click();
+          isExporting=false;
+          btn.textContent='\u21b5 export';
+          btn.style.color='rgba(255,255,255,.35)';
+          btn.style.borderColor='rgba(255,255,255,.14)';
+        }).catch(function(e){
+          alert('Export failed: '+e.message);
+          isExporting=false;
+          btn.textContent='\u21b5 export';
+          btn.style.color='rgba(255,255,255,.35)';
+          btn.style.borderColor='rgba(255,255,255,.14)';
+        });
+      };
+      reader.readAsArrayBuffer(webmBlob);
+    };
+
+    var savedTh=orbitTh,savedPh=orbitPh,savedSpin=autoSpin;
+    orbitPh=Math.PI/5;
+    var startTh=orbitTh;
+    var dur=15000;
+    var startTime=null;
+    autoSpin=false;
+    isDragging=false;
+    btn.textContent='recording...';
+    rec.start();
+    function exportFrame(ts){
+      if(!startTime)startTime=ts;
+      var elapsed=ts-startTime;
+      var progress=Math.min(elapsed/dur,1);
+      orbitTh=startTh+(Math.PI*2)*progress;
+      updateCam();
+      ren.render(scn,cam);
+      if(progress<1){requestAnimationFrame(exportFrame);}
+      else{rec.stop();orbitTh=savedTh;orbitPh=savedPh;autoSpin=savedSpin;}
+    }
+    requestAnimationFrame(exportFrame);
+  });
 });
 
 </script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/SVGLoader.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/RGBELoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.6/dist/umd/ffmpeg.js"></script>
 <script>
 var ren = new THREE.WebGLRenderer({antialias:true});
 ren.setPixelRatio(Math.min(devicePixelRatio,2));
