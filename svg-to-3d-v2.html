@@ -63,13 +63,13 @@ setBright(50);
 function onResize(){ren.setSize(innerWidth,innerHeight);cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();}
 onResize();window.addEventListener('resize',onResize);
 var camDist=4,orbitTh=0.4,orbitPh=Math.PI/4;
-var isDragging=false,lastX=0,lastY=0,inertX=0,inertY=0,autoSpin=false;
+var isDragging=false,lastX=0,lastY=0,inertX=0,inertY=0,autoSpin=false,spinTimer=null;
 var DAMP=0.9,SENS=0.005,PH_MIN=0.05,PH_MAX=Math.PI-0.05;
 function updateCam(){var sp=Math.sin(orbitPh),cp=Math.cos(orbitPh);cam.position.set(camDist*sp*Math.sin(orbitTh),camDist*cp,camDist*sp*Math.cos(orbitTh));cam.lookAt(0,0,0);}
 updateCam();
-function onDragStart(x,y){isDragging=true;lastX=x;lastY=y;inertX=inertY=0;autoSpin=false;}
+function onDragStart(x,y){isDragging=true;lastX=x;lastY=y;inertX=inertY=0;autoSpin=false;if(spinTimer){clearTimeout(spinTimer);spinTimer=null;}}
 function onDragMove(x,y){if(!isDragging)return;var dx=x-lastX,dy=y-lastY;orbitTh-=dx*SENS;orbitPh=Math.max(PH_MIN,Math.min(PH_MAX,orbitPh-dy*SENS));inertX=-dx*SENS;inertY=-dy*SENS;lastX=x;lastY=y;}
-function onDragEnd(){isDragging=false;}
+function onDragEnd(){isDragging=false;spinTimer=setTimeout(function(){autoSpin=true;spinTimer=null;},3000);}
 ren.domElement.addEventListener('mousedown',function(e){onDragStart(e.clientX,e.clientY);});
 window.addEventListener('mousemove',function(e){onDragMove(e.clientX,e.clientY);});
 window.addEventListener('mouseup',onDragEnd);
@@ -133,7 +133,7 @@ function loadSVG(txt,fname){
 function handleFile(f){if(!f||!f.name.match(/[.]svg$/i)){alert('SVG only');return;}var rd=new FileReader();rd.onload=function(e){loadSVG(e.target.result,f.name);};rd.readAsText(f);}
 document.getElementById('fi').addEventListener('change',function(e){var f=e.target.files&&e.target.files[0];if(f)handleFile(f);});
 var dz=document.getElementById('dz');
-dz.addEventListener('click',function(e){if(e.target.tagName!=='INPUT')document.getElementById('fi').click();});
+dz.addEventListener('mousedown',function(e){if(e.target.tagName!=='INPUT'){e.preventDefault();document.getElementById('fi').click();}});
 dz.addEventListener('dragover',function(e){e.preventDefault();e.stopPropagation();dz.classList.add('over');});
 dz.addEventListener('dragleave',function(){dz.classList.remove('over');});
 dz.addEventListener('drop',function(e){e.preventDefault();e.stopPropagation();dz.classList.remove('over');var f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0];if(f)handleFile(f);});
