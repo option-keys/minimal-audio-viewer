@@ -36,6 +36,7 @@ canvas{display:block;position:fixed;inset:0;width:100%!important;height:100%!imp
   <div class="row"><span class="rl">depth</span><input type="range" class="rs" id="sd" min="1" max="100" value="30" step="1"/><span class="rv" id="vd">30</span></div>
   <div class="row"><span class="rl">size</span><input type="range" class="rs" id="ss" min="20" max="200" value="100" step="1"/><span class="rv" id="vs">100</span></div>
   <div class="row"><span class="rl">brightness</span><input type="range" class="rs" id="sb" min="0" max="100" value="50" step="1"/><span class="rv" id="vb">50</span></div>
+  <div class="row"><span class="rl">color</span><input type="range" class="rs" id="sc" min="0" max="360" value="0" step="1" style="background:linear-gradient(to right,hsl(0,80%,60%),hsl(45,80%,60%),hsl(90,80%,60%),hsl(135,80%,60%),hsl(180,80%,60%),hsl(225,80%,60%),hsl(270,80%,60%),hsl(315,80%,60%),hsl(360,80%,60%))"/><span class="rv" id="vc">0</span></div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/SVGLoader.js"></script>
@@ -59,6 +60,7 @@ function addDL(c,i,x,y,z){var l=new THREE.DirectionalLight(c,i);l.position.set(x
 addDL(0xffffff,0.6,3,5,3);addDL(0xffffff,0.4,-3,2,3);addDL(0xffffff,0.3,0,-3,3);
 scn.add(new THREE.AmbientLight(0xffffff,0.05));
 function setBright(v){var t=v/100;ren.toneMappingExposure=0.3+t*1.8;mat.envMapIntensity=0.5+t*2.0;mat.needsUpdate=true;}
+function setColor(h){if(h===0){mat.color.setRGB(1,1,1);}else{mat.color.setHSL(h/360,0.7,0.75);}mat.needsUpdate=true;}
 setBright(50);
 function onResize(){ren.setSize(innerWidth,innerHeight);cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();}
 onResize();window.addEventListener('resize',onResize);
@@ -140,7 +142,8 @@ dz.addEventListener('drop',function(e){e.preventDefault();e.stopPropagation();dz
 document.getElementById('sd').addEventListener('input',function(){document.getElementById('vd').textContent=this.value;buildGeo(+this.value);});
 document.getElementById('ss').addEventListener('input',function(){document.getElementById('vs').textContent=this.value;applySize(+this.value);});
 document.getElementById('sb').addEventListener('input',function(){document.getElementById('vb').textContent=this.value;setBright(+this.value);});
-document.getElementById('newbtn').addEventListener('click',function(){if(WRAP){scn.remove(WRAP);WRAP=null;GEO=null;}svgShapes=[];autoSpin=false;document.getElementById('ctrl').style.display='none';document.getElementById('newbtn').style.display='none';document.getElementById('lbl').style.display='none';document.getElementById('upload').style.display='flex';document.getElementById('fi').value='';document.getElementById('sd').value=30;document.getElementById('vd').textContent='30';document.getElementById('ss').value=100;document.getElementById('vs').textContent='100';document.getElementById('sb').value=50;document.getElementById('vb').textContent='50';setBright(50);});
+document.getElementById('sc').addEventListener('input',function(){document.getElementById('vc').textContent=this.value;setColor(+this.value);});
+document.getElementById('newbtn').addEventListener('click',function(){if(WRAP){scn.remove(WRAP);WRAP=null;GEO=null;}svgShapes=[];autoSpin=false;document.getElementById('ctrl').style.display='none';document.getElementById('newbtn').style.display='none';document.getElementById('lbl').style.display='none';document.getElementById('upload').style.display='flex';document.getElementById('fi').value='';document.getElementById('sd').value=30;document.getElementById('vd').textContent='30';document.getElementById('ss').value=100;document.getElementById('vs').textContent='100';document.getElementById('sb').value=50;document.getElementById('vb').textContent='50';setBright(50);document.getElementById('sc').value=0;document.getElementById('vc').textContent='0';setColor(0);});
 </script>
 </body>
 </html>
