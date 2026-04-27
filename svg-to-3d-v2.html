@@ -161,7 +161,7 @@ document.getElementById('expbtn').addEventListener('click',function(){
   var ext=mp4?'mp4':'webm';
   isExporting=true;setExp('recording...',true);
   var savedTh=orbitTh,savedPh=orbitPh,savedSpin=autoSpin;
-  orbitPh=Math.PI/5;var startTh=orbitTh;autoSpin=false;isDragging=false;
+  var startTh=orbitTh;autoSpin=false;isDragging=false;
   var stream=ren.domElement.captureStream(30);
   var rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:10000000});
   var chunks=[];
