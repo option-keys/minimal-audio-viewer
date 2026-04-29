@@ -122,7 +122,7 @@ function loadSVG(txt,fname){
         if(q1>-1&&q2>q1){var nums=txt.slice(q1+1,q2).trim().split(/[\s,]+/);if(nums.length>=4){vbW=parseFloat(nums[2])||100;vbH=parseFloat(nums[3])||100;}}
       }
       svgShapes=[];
-      p.paths.forEach(function(pt){pt.toShapes(true).forEach(function(sh){svgShapes.push(sh);});});
+      p.paths.forEach(function(pt){(THREE.SVGLoader.createShapes?THREE.SVGLoader.createShapes(pt):pt.toShapes(true)).forEach(function(sh){svgShapes.push(sh);});});
       if(!svgShapes.length)throw new Error('Could not read shapes.');
       buildGeo(parseInt(document.getElementById('sd').value)||30);
       if(!WRAP)throw new Error('Extrusion failed.');
